@@ -173,8 +173,9 @@ def test_redacts_unregistered_secret_shaped_assignments():
 
 
 def test_redacts_yahoo_consumer_key_and_jwt_shapes():
+    # Synthetic strings in these shapes, so redaction has something to catch.
     scrubbed = scrub_text(
-        "key dj0yJmk9abcdefghijklmnop and jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig"
+        "key dj0yJmk9abcdefghijklmnop and jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig"  # secret-scan: allow
     )
     assert "dj0yJmk9" not in scrubbed
     assert "eyJhbGciOiJIUzI1NiJ9" not in scrubbed

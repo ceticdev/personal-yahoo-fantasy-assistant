@@ -70,7 +70,7 @@ def call_tool(name: str, arguments: dict | None = None) -> dict:
 def _config(tmp_path: Path, *, credentials: bool = True) -> Config:
     return Config(
         client_id="test-client-id" if credentials else None,
-        client_secret="test-client-secret" if credentials else None,
+        client_secret="test-client-secret" if credentials else None,  # secret-scan: allow (synthetic)
         redirect_uri="oob",
         token_path=tmp_path / "token.json",
         default_league_key=None,

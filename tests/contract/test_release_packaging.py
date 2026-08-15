@@ -131,7 +131,10 @@ def test_secret_scanner_reports_categories_without_values(tmp_path, monkeypatch)
     from secret_scan import scan
 
     planted = tmp_path / "leaky.py"
-    planted.write_text('client_secret = "abcdef0123456789abcdef"\n', encoding="utf-8")
+    # A synthetic planted value; finding it is the whole point of the test.
+    planted.write_text(
+        'client_secret = "abcdef0123456789abcdef"\n', encoding="utf-8"  # secret-scan: allow
+    )
     monkeypatch.chdir(tmp_path)
 
     scanned, hits = scan(["leaky.py"])
@@ -141,6 +144,27 @@ def test_secret_scanner_reports_categories_without_values(tmp_path, monkeypatch)
     assert "client_secret_value" in hits["leaky.py"]
     # The report carries categories, not values.
     assert all("abcdef0123456789" not in category for category in hits["leaky.py"])
+
+
+def test_secret_scan_pragma_exempts_only_its_own_line(tmp_path, monkeypatch):
+    """The opt-out must not blind the scanner to the rest of the file."""
+
+    from secret_scan import PRAGMA, scan
+
+    # Assembled from fragments so this test file does not itself trip the
+    # scanner -- the patterns only match once the pieces are joined at runtime.
+    exempt_line = f'sample = "{"a" * 42}"  # {PRAGMA}'
+    flagged_line = 'real_looking = "-----BEGIN ' + 'RSA PRIVATE KEY-----"'
+
+    mixed = tmp_path / "mixed.py"
+    mixed.write_text(f"{exempt_line}\n{flagged_line}\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    _, hits = scan(["mixed.py"])
+
+    # The pragma line is skipped, but the unmarked line below it still trips.
+    assert "private_key_block" in hits["mixed.py"]
+    assert "long_hex_blob" not in hits.get("mixed.py", set())
 
 
 def test_secret_scanner_is_clean_on_a_benign_file(tmp_path, monkeypatch):

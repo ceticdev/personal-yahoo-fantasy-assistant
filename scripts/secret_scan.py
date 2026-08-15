@@ -33,6 +33,13 @@ PATTERNS: dict[str, str] = {
     "long_base64_blob": r"\b[A-Za-z0-9+/]{60,}={0,2}\b",
 }
 
+#: Line-level opt-out, deliberately narrow. A line carrying this marker is
+#: skipped; the rest of the file is still scanned. Used for the synthetic
+#: secret-shaped literals that the redaction and scanner tests need in order
+#: to prove they work. A whole-file allowlist is intentionally NOT offered --
+#: it would blind the scanner to a real secret added to the same file later.
+PRAGMA = "secret-scan: allow"
+
 #: Paths whose contents are allowed to look secret-shaped. Nothing is here by
 #: default; entries must be justified in review.
 ALLOWLIST: set[str] = set()
@@ -62,9 +69,14 @@ def scan(paths: list[str]) -> tuple[int, dict[str, set[str]]]:
         except OSError:
             continue
         scanned += 1
-        for category, pattern in compiled.items():
-            if pattern.search(text):
-                hits[name].add(category)
+        # Line-based so a single pragma-marked line can be exempted without
+        # exempting the file around it.
+        for line in text.splitlines():
+            if PRAGMA in line:
+                continue
+            for category, pattern in compiled.items():
+                if pattern.search(line):
+                    hits[name].add(category)
 
     return scanned, hits
 
