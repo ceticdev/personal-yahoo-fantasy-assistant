@@ -1,0 +1,45 @@
+{
+  "_fixture_note": "Shaped to match league/{league_key}/players;status=FA (format=json).",
+  "fantasy_content": {
+    "league": [
+      {"league_key": "461.l.371856"},
+      {
+        "players": {
+          "count": 2,
+          "0": {
+            "player": [
+              [
+                {"player_key": "461.p.100200"},
+                {"player_id": "100200"},
+                {"name": {"full": "George Kittle", "first": "George", "last": "Kittle"}},
+                {"editorial_team_abbr": "SF"},
+                {"display_position": "TE"},
+                {"eligible_positions": [{"position": "TE"}]},
+                {"status": "O"},
+                {"status_full": "Out"},
+                {"percent_owned": {"value": "41"}},
+                {"bye_weeks": {"week": "14"}}
+              ]
+            ]
+          },
+          "1": {
+            "player": [
+              [
+                {"player_key": "461.p.100201"},
+                {"player_id": "100201"},
+                {"name": {"full": "Alec Pierce", "first": "Alec", "last": "Pierce"}},
+                {"editorial_team_abbr": "IND"},
+                {"display_position": "WR"},
+                {"eligible_positions": [{"position": "WR"}]},
+                {"status": "IR"},
+                {"status_full": "Injured Reserve"},
+                {"percent_owned": {"value": "6"}},
+                {"bye_weeks": {"week": "11"}}
+              ]
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

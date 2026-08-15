@@ -1,0 +1,81 @@
+{
+  "_fixture_note": "Shaped to match team/{team_key}/roster (format=json). Player identities mirror the Aug 15 2026 handoff snapshot for continuity, not a live pull.",
+  "fantasy_content": {
+    "team": [
+      [
+        {"team_key": "461.l.371856.t.2"},
+        {"team_id": "2"},
+        {"name": "Matty B Raps"}
+      ],
+      {
+        "roster": {
+          "0": {
+            "players": {
+              "count": 4,
+              "0": {
+                "player": [
+                  [
+                    {"player_key": "461.p.100001"},
+                    {"player_id": "100001"},
+                    {"name": {"full": "Josh Allen", "first": "Josh", "last": "Allen"}},
+                    {"editorial_team_abbr": "BUF"},
+                    {"display_position": "QB"},
+                    {"eligible_positions": [{"position": "QB"}]},
+                    {"bye_weeks": {"week": "12"}}
+                  ],
+                  {"selected_position": [{"coverage_type": "week"}, {"position": "QB"}]}
+                ]
+              },
+              "1": {
+                "player": [
+                  [
+                    {"player_key": "461.p.100002"},
+                    {"player_id": "100002"},
+                    {"name": {"full": "Malik Nabers", "first": "Malik", "last": "Nabers"}},
+                    {"editorial_team_abbr": "NYG"},
+                    {"display_position": "WR"},
+                    {"eligible_positions": [{"position": "WR"}]},
+                    {"status": "Q"},
+                    {"status_full": "Questionable"},
+                    {"bye_weeks": {"week": "11"}}
+                  ],
+                  {"selected_position": [{"coverage_type": "week"}, {"position": "WR"}]}
+                ]
+              },
+              "2": {
+                "player": [
+                  [
+                    {"player_key": "461.p.100003"},
+                    {"player_id": "100003"},
+                    {"name": {"full": "Josh Jacobs", "first": "Josh", "last": "Jacobs"}},
+                    {"editorial_team_abbr": "GB"},
+                    {"display_position": "RB"},
+                    {"eligible_positions": [{"position": "RB"}]},
+                    {"status": "Q"},
+                    {"status_full": "Questionable"},
+                    {"bye_weeks": {"week": "5"}}
+                  ],
+                  {"selected_position": [{"coverage_type": "week"}, {"position": "RB"}]}
+                ]
+              },
+              "3": {
+                "player": [
+                  [
+                    {"player_key": "461.p.100099"},
+                    {"player_id": "100099"},
+                    {"name": {"full": "Philadelphia", "first": "", "last": ""}},
+                    {"editorial_team_abbr": "PHI"},
+                    {"display_position": "DEF"},
+                    {"eligible_positions": [{"position": "DEF"}]},
+                    {"bye_weeks": {"week": "9"}}
+                  ],
+                  {"selected_position": [{"coverage_type": "week"}, {"position": "DEF"}]}
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

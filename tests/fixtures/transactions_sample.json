@@ -1,0 +1,64 @@
+{
+  "_fixture_note": "Shaped to match league/{league_key}/transactions (format=json).",
+  "fantasy_content": {
+    "league": [
+      {"league_key": "461.l.371856"},
+      {
+        "transactions": {
+          "count": 1,
+          "0": {
+            "transaction": [
+              {
+                "transaction_key": "461.l.371856.tr.501",
+                "type": "add/drop",
+                "status": "successful",
+                "timestamp": "1755200000"
+              },
+              {
+                "players": {
+                  "count": 2,
+                  "0": {
+                    "player": [
+                      [
+                        {"player_key": "461.p.100300"},
+                        {"name": {"full": "Bhayshul Tuten"}}
+                      ],
+                      {
+                        "transaction_data": [
+                          {
+                            "type": "add",
+                            "source_type": "freeagents",
+                            "destination_type": "team",
+                            "destination_team_key": "461.l.371856.t.2"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "1": {
+                    "player": [
+                      [
+                        {"player_key": "461.p.100301"},
+                        {"name": {"full": "Jaylen Warren"}}
+                      ],
+                      {
+                        "transaction_data": [
+                          {
+                            "type": "drop",
+                            "source_type": "team",
+                            "source_team_key": "461.l.371856.t.2",
+                            "destination_type": "freeagents"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
