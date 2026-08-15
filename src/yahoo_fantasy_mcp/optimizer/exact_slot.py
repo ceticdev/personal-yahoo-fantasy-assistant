@@ -1,8 +1,7 @@
 """Exact-slot lineup optimization using a small dynamic program.
 
-Ported from `deliverable/matty-fantasy-mcp/fantasy_league_mcp/optimizer.py`
-per the deferred-backlog instruction to reuse it here. The one real change:
-that version reads `starter_slots` from a hardcoded module-level
+Adapted from the optimizer in Matty Fantasy MCP. The one real change: that
+version reads `starter_slots` from a hardcoded module-level
 `LEAGUE_PROFILE`. This version takes `slots` as an explicit argument, sourced
 from `LeagueSettings.starter_slots()` (i.e. Yahoo's live roster-position
 table via `get_league_settings`), so the optimizer never drifts out of sync

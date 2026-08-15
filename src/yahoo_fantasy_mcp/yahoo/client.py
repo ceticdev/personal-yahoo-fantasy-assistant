@@ -1,9 +1,9 @@
 """Yahoo Fantasy Sports API client: cache-aware, redacted logging, typed errors.
 
-Per `VERIFICATION-RUN-NOTES.md` (Aug 15 2026): Yahoo now gates the Fantasy
-Sports API behind a manual per-app provisioning queue. That is not a token
-problem, and refreshing the token will not fix it. This client detects that
-specific failure mode and reports it as such instead of retrying forever.
+Yahoo gates the Fantasy Sports API behind a manual per-app provisioning
+queue. That is not a token problem, and refreshing the token will not fix it.
+This client detects that specific failure mode and reports it as such instead
+of retrying forever. See `VERIFICATION-NOTES.md`.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ NOT_PROVISIONED_MESSAGE = (
     "Yahoo Fantasy Sports API access is gated behind a manual app-provisioning "
     "queue (oauth_problem=additional_authorization_required, or a bare 403). "
     "This is not a token problem -- refreshing will not help. See "
-    "VERIFICATION-RUN-NOTES.md section 4. Apply at "
+    "VERIFICATION-NOTES.md. Apply at "
     "https://sports.yahoo.com/developer/access/ with the existing client ID."
 )
 

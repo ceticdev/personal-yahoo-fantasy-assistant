@@ -15,7 +15,7 @@ SLOTS = ["QB", "WR", "WR", "RB", "RB", "TE", "W/R", "W/R/T", "K", "DEF"]
 
 
 def test_slots_come_from_live_league_settings_not_a_hardcoded_list():
-    settings = parse_league_settings(load_fixture("league_settings_371856.json"))
+    settings = parse_league_settings(load_fixture("league_settings_sample.json"))
     assert settings.starter_slots() == SLOTS
 
 

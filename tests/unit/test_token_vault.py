@@ -5,7 +5,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+import pytest
+
 from yahoo_fantasy_mcp.auth.token_vault import StoredToken, TokenVault, TokenVaultError
+
+# POSIX mode bits are only meaningfully enforced on POSIX filesystems. On
+# Windows, os.chmod() only toggles the read-only attribute, so a token file
+# there does NOT get real 0600 protection -- see docs/SECURITY.md.
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows does not enforce POSIX 0600 file modes; os.chmod only toggles read-only",
+)
 
 
 def _token(expires_in=3600):
@@ -28,6 +38,7 @@ def test_save_then_load_round_trips(tmp_path):
     assert loaded == token
 
 
+@posix_only
 def test_save_writes_with_0600_permissions(tmp_path):
     vault = TokenVault(tmp_path / "token.json")
     vault.save(_token())
@@ -36,11 +47,22 @@ def test_save_writes_with_0600_permissions(tmp_path):
     assert mode == 0o600
 
 
+def test_save_writes_atomically_to_the_target_path(tmp_path):
+    # Platform-independent half of the guarantee: the save lands exactly one
+    # file at the target path and leaves no partial temp file behind.
+    vault = TokenVault(tmp_path / "token.json")
+    vault.save(_token())
+
+    files = sorted(p.name for p in tmp_path.iterdir())
+    assert files == ["token.json"]
+
+
 def test_load_missing_file_returns_none(tmp_path):
     vault = TokenVault(tmp_path / "does_not_exist.json")
     assert vault.load() is None
 
 
+@posix_only
 def test_load_repairs_overly_permissive_file(tmp_path):
     path = tmp_path / "token.json"
     vault = TokenVault(path)

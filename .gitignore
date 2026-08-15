@@ -8,11 +8,19 @@ venv/
 
 # Secrets and tokens - never commit these
 .env
+.env.*
+!.env.example
 *.token.json
 token.json
 .yahoo_token.json
+credentials*.json
+client_secret*.json
 *.pem
 *.key
+
+# Local tooling / reports - not part of the public artifact
+.serena/
+reports/
 
 # OS
 .DS_Store

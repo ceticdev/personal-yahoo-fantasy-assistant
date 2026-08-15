@@ -1,15 +1,15 @@
 {
-  "_fixture_note": "Shaped to match league/{league_key}/transactions (format=json).",
+  "_fixture_note": "SYNTHETIC FIXTURE -- hand-authored, NOT captured from Yahoo. Shaped to match league/{league_key}/transactions (format=json). League key, team key, transaction key, timestamp, and player names are invented placeholders. This does not record any real transaction.",
   "fantasy_content": {
     "league": [
-      {"league_key": "461.l.371856"},
+      {"league_key": "999.l.100000"},
       {
         "transactions": {
           "count": 1,
           "0": {
             "transaction": [
               {
-                "transaction_key": "461.l.371856.tr.501",
+                "transaction_key": "999.l.100000.tr.501",
                 "type": "add/drop",
                 "status": "successful",
                 "timestamp": "1755200000"
@@ -20,8 +20,8 @@
                   "0": {
                     "player": [
                       [
-                        {"player_key": "461.p.100300"},
-                        {"name": {"full": "Bhayshul Tuten"}}
+                        {"player_key": "999.p.100300"},
+                        {"name": {"full": "Sample Addedplayer"}}
                       ],
                       {
                         "transaction_data": [
@@ -29,7 +29,7 @@
                             "type": "add",
                             "source_type": "freeagents",
                             "destination_type": "team",
-                            "destination_team_key": "461.l.371856.t.2"
+                            "destination_team_key": "999.l.100000.t.1"
                           }
                         ]
                       }
@@ -38,15 +38,15 @@
                   "1": {
                     "player": [
                       [
-                        {"player_key": "461.p.100301"},
-                        {"name": {"full": "Jaylen Warren"}}
+                        {"player_key": "999.p.100301"},
+                        {"name": {"full": "Sample Droppedplayer"}}
                       ],
                       {
                         "transaction_data": [
                           {
                             "type": "drop",
                             "source_type": "team",
-                            "source_team_key": "461.l.371856.t.2",
+                            "source_team_key": "999.l.100000.t.1",
                             "destination_type": "freeagents"
                           }
                         ]

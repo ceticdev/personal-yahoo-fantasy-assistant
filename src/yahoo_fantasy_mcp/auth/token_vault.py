@@ -6,8 +6,11 @@ Design goals, directly from the deferred-backlog item:
   Desktop's json) only ever points at this process; it never contains a
   token or client secret.
 - One file, outside the repo by default (`~/.config/yahoo-fantasy-mcp/`),
-  written with `0600` permissions via an atomic replace so a crash mid-write
-  cannot leave a half-written token file.
+  written via an atomic replace so a crash mid-write cannot leave a
+  half-written token file. `0600` permissions are requested on it, but note
+  that this is only enforced on POSIX -- on Windows `os.chmod` merely toggles
+  the read-only attribute, so the file does NOT get real 0600 protection
+  there. See `docs/SECURITY.md`.
 - The vault stores the OAuth token pair and its expiry. It deliberately does
   NOT store client_id/client_secret -- those come from the environment at
   process start, so a leaked token file alone cannot be used to mint new

@@ -1,11 +1,11 @@
 {
-  "_fixture_note": "Shaped to match team/{team_key}/roster (format=json). Player identities mirror the Aug 15 2026 handoff snapshot for continuity, not a live pull.",
+  "_fixture_note": "SYNTHETIC FIXTURE -- hand-authored, NOT captured from Yahoo and NOT a snapshot of any real roster. Shaped to match team/{team_key}/roster (format=json). Team key, team name, player keys, and player names are invented placeholders chosen to exercise the parser (starter slots, injury status, bye weeks, a team defense entry). Any resemblance to real players or teams is not intended.",
   "fantasy_content": {
     "team": [
       [
-        {"team_key": "461.l.371856.t.2"},
-        {"team_id": "2"},
-        {"name": "Matty B Raps"}
+        {"team_key": "999.l.100000.t.1"},
+        {"team_id": "1"},
+        {"name": "Synthetic Example Team"}
       ],
       {
         "roster": {
@@ -15,10 +15,10 @@
               "0": {
                 "player": [
                   [
-                    {"player_key": "461.p.100001"},
+                    {"player_key": "999.p.100001"},
                     {"player_id": "100001"},
-                    {"name": {"full": "Josh Allen", "first": "Josh", "last": "Allen"}},
-                    {"editorial_team_abbr": "BUF"},
+                    {"name": {"full": "Sample Quarterback", "first": "Sample", "last": "Quarterback"}},
+                    {"editorial_team_abbr": "AAA"},
                     {"display_position": "QB"},
                     {"eligible_positions": [{"position": "QB"}]},
                     {"bye_weeks": {"week": "12"}}
@@ -29,10 +29,10 @@
               "1": {
                 "player": [
                   [
-                    {"player_key": "461.p.100002"},
+                    {"player_key": "999.p.100002"},
                     {"player_id": "100002"},
-                    {"name": {"full": "Malik Nabers", "first": "Malik", "last": "Nabers"}},
-                    {"editorial_team_abbr": "NYG"},
+                    {"name": {"full": "Sample Receiver", "first": "Sample", "last": "Receiver"}},
+                    {"editorial_team_abbr": "BBB"},
                     {"display_position": "WR"},
                     {"eligible_positions": [{"position": "WR"}]},
                     {"status": "Q"},
@@ -45,10 +45,10 @@
               "2": {
                 "player": [
                   [
-                    {"player_key": "461.p.100003"},
+                    {"player_key": "999.p.100003"},
                     {"player_id": "100003"},
-                    {"name": {"full": "Josh Jacobs", "first": "Josh", "last": "Jacobs"}},
-                    {"editorial_team_abbr": "GB"},
+                    {"name": {"full": "Sample Runningback", "first": "Sample", "last": "Runningback"}},
+                    {"editorial_team_abbr": "CCC"},
                     {"display_position": "RB"},
                     {"eligible_positions": [{"position": "RB"}]},
                     {"status": "Q"},
@@ -61,10 +61,10 @@
               "3": {
                 "player": [
                   [
-                    {"player_key": "461.p.100099"},
+                    {"player_key": "999.p.100099"},
                     {"player_id": "100099"},
-                    {"name": {"full": "Philadelphia", "first": "", "last": ""}},
-                    {"editorial_team_abbr": "PHI"},
+                    {"name": {"full": "Sample Defense", "first": "", "last": ""}},
+                    {"editorial_team_abbr": "DDD"},
                     {"display_position": "DEF"},
                     {"eligible_positions": [{"position": "DEF"}]},
                     {"bye_weeks": {"week": "9"}}

@@ -1,13 +1,11 @@
 """Historical rate model for expected 40+ yard plays and long touchdowns.
 
-`VERIFICATION-RUN-NOTES.md` flagged that Yahoo season-total projections do
-not carry 40+ play counts, so the optimizer's smoke-tested output is a
-slot-assignment check, not a fully custom-scored projection. This module
-exists to close that gap -- but honestly: the default rates below are
-**placeholders**, not a fit to real play-by-play data. There was no dataset
-available to fit against in this build (`nfl-mcp`'s CBS projections were
-returning HTTP 404 for the target week, and no historical box-score archive
-was supplied). Call `fit_from_history()` with real season data before
+Yahoo season-total projections do not carry 40+ play counts, so the
+optimizer's output is a slot-assignment check, not a fully custom-scored
+projection. This module exists to close that gap -- but honestly: the default
+rates below are **placeholders**, not a fit to real play-by-play data. No
+historical play-by-play or box-score dataset was available to fit against in
+this build. Call `fit_from_history()` with real season data before
 trusting this in a live decision; until then, every estimate this module
 returns is labeled with `basis` so it can never be mistaken for a measured
 rate.

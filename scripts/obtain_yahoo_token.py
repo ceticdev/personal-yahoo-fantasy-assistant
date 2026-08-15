@@ -50,7 +50,10 @@ def main() -> None:
         raise SystemExit(1)
 
     token = client.exchange_code(code)
-    print(f"\nToken saved to {vault.path} (0600 permissions).")
+    perms = "0600 permissions" if sys.platform != "win32" else (
+        "read-only attribute only -- Windows does not enforce POSIX 0600"
+    )
+    print(f"\nToken saved to {vault.path} ({perms}).")
     print(f"Redacted state: {token.redacted()}")
 
 

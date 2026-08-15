@@ -4,11 +4,9 @@
 enforces this in CI-style fashion -- it fails if any registered MCP tool name
 contains a write verb (add, drop, trade, submit, update, delete, etc.).
 
-This mirrors the original plan's guardrail directly:
-
-> Never make a provider change without confirmation. Lineup recommendations
-> are allowed; provider writes remain manual.
-> -- `MCP-PLAN-AND-CLAUDE-HANDOFF.md`, Phase 4
+The standing guardrail this project is built around: never make a provider
+change without confirmation. Lineup recommendations are allowed; provider
+writes remain manual, performed by the user in Yahoo's own UI.
 
 ## Why this is a separate approval, not a follow-on PR
 

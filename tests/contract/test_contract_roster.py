@@ -22,7 +22,7 @@ def test_roster_with_no_roster_section_returns_empty_list_not_a_crash():
 
 
 def test_fixture_player_count_matches_expected():
-    roster = parse_team_roster(load_fixture("roster_team2.json"))
+    roster = parse_team_roster(load_fixture("roster_sample.json"))
     assert len(roster) == 4
     assert all(player.name for player in roster)
     assert all(player.eligible_positions for player in roster)

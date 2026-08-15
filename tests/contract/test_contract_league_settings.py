@@ -12,10 +12,10 @@ from yahoo_fantasy_mcp.yahoo.parsers.league_settings import parse_league_setting
 
 
 def test_fixture_round_trip_is_stable():
-    settings = parse_league_settings(load_fixture("league_settings_371856.json"))
+    settings = parse_league_settings(load_fixture("league_settings_sample.json"))
     # Re-serializing and re-parsing the same shape should be a no-op --
     # guards against accidental mutation of shared fixture data.
-    settings_again = parse_league_settings(load_fixture("league_settings_371856.json"))
+    settings_again = parse_league_settings(load_fixture("league_settings_sample.json"))
     assert settings == settings_again
 
 

@@ -2,8 +2,7 @@
 
 This module does NOT score points. Scoring stays owned by the separate
 Matty Fantasy MCP (`get_league_profile` / `score_player_stat_line`), which is
-the verified, tested custom-scoring engine per
-`deliverable/MCP-PLAN-AND-CLAUDE-HANDOFF.md`. What this adapter does:
+the deterministic custom-scoring engine in this setup. What this adapter does:
 
 1. Accepts a raw stat line from any source (Yahoo, CBS, a manual estimate)
    using the field names the scoring engine expects

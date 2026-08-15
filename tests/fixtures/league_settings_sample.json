@@ -1,11 +1,11 @@
 {
-  "_fixture_note": "Shaped to match Yahoo Fantasy Sports API v2 JSON (format=json) for the league/{league_key}/settings resource. Stat IDs here are illustrative placeholders, NOT verified against a live Yahoo game/stat_categories resource -- Yahoo access was gated (403 / provisioning queue) as of the Aug 15 2026 verification run. Regenerate this fixture from a real response once API access is granted; parser logic does not change.",
+  "_fixture_note": "SYNTHETIC FIXTURE -- hand-authored, NOT captured from Yahoo. Shaped to match Yahoo Fantasy Sports API v2 JSON (format=json) for the league/{league_key}/settings resource. The league key, league id, league name, stat IDs, and stat modifier values are all invented examples; they do not describe any real Yahoo league. Stat IDs in particular are NOT verified against a live game/{game_key}/stat_categories response -- Yahoo API access was still pending as of this commit. Recalibrate this fixture from a sanitized real response once access is granted; the parser contract does not change.",
   "fantasy_content": {
     "league": [
       {
-        "league_key": "461.l.371856",
-        "league_id": "371856",
-        "name": "Katie's Unrivaled League",
+        "league_key": "999.l.100000",
+        "league_id": "100000",
+        "name": "Synthetic Example League",
         "season": "2026",
         "num_teams": 6,
         "scoring_type": "head"

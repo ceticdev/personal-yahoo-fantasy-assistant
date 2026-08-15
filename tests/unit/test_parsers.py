@@ -12,9 +12,9 @@ from yahoo_fantasy_mcp.yahoo.parsers.transactions import parse_transactions
 
 
 def test_parse_league_settings():
-    settings = parse_league_settings(load_fixture("league_settings_371856.json"))
-    assert settings.league_id == "371856"
-    assert settings.name == "Katie's Unrivaled League"
+    settings = parse_league_settings(load_fixture("league_settings_sample.json"))
+    assert settings.league_id == "100000"
+    assert settings.name == "Synthetic Example League"
     assert settings.num_teams == 6
     assert settings.playoff_start_week == 16
     assert settings.num_playoff_teams == 4
@@ -34,28 +34,28 @@ def test_parse_league_settings():
 
 
 def test_parse_team_roster():
-    roster = parse_team_roster(load_fixture("roster_team2.json"))
+    roster = parse_team_roster(load_fixture("roster_sample.json"))
     names = {player.name for player in roster}
-    assert names == {"Josh Allen", "Malik Nabers", "Josh Jacobs", "Philadelphia"}
+    assert names == {"Sample Quarterback", "Sample Receiver", "Sample Runningback", "Sample Defense"}
 
-    nabers = next(p for p in roster if p.name == "Malik Nabers")
-    assert nabers.status == "Q"
-    assert nabers.status_full == "Questionable"
-    assert nabers.selected_position == "WR"
-    assert nabers.bye_week == 11
+    receiver = next(p for p in roster if p.name == "Sample Receiver")
+    assert receiver.status == "Q"
+    assert receiver.status_full == "Questionable"
+    assert receiver.selected_position == "WR"
+    assert receiver.bye_week == 11
 
-    allen = next(p for p in roster if p.name == "Josh Allen")
-    assert allen.status is None
-    assert allen.selected_position == "QB"
+    quarterback = next(p for p in roster if p.name == "Sample Quarterback")
+    assert quarterback.status is None
+    assert quarterback.selected_position == "QB"
 
 
 def test_parse_free_agents():
     agents = parse_free_agents(load_fixture("free_agents_sample.json"))
     assert len(agents) == 2
-    kittle = next(a for a in agents if a.name == "George Kittle")
-    assert kittle.status == "O"
-    assert kittle.percent_owned == 41.0
-    assert kittle.display_position == "TE"
+    tight_end = next(a for a in agents if a.name == "Sample Tightend")
+    assert tight_end.status == "O"
+    assert tight_end.percent_owned == 41.0
+    assert tight_end.display_position == "TE"
 
 
 def test_parse_transactions():
@@ -64,7 +64,7 @@ def test_parse_transactions():
     tx = txs[0]
     assert tx.transaction_type == "add/drop"
     assert tx.status == "successful"
-    assert {move.name for move in tx.players} == {"Bhayshul Tuten", "Jaylen Warren"}
-    add_move = next(m for m in tx.players if m.name == "Bhayshul Tuten")
+    assert {move.name for move in tx.players} == {"Sample Addedplayer", "Sample Droppedplayer"}
+    add_move = next(m for m in tx.players if m.name == "Sample Addedplayer")
     assert add_move.source_type == "freeagents"
-    assert add_move.destination_team_key == "461.l.371856.t.2"
+    assert add_move.destination_team_key == "999.l.100000.t.1"
