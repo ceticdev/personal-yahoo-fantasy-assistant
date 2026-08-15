@@ -1,7 +1,8 @@
 """Parse league/{league_key}/settings into a typed LeagueSettings.
 
-This is the piece Flaim does not expose: the full stat-modifier table and
-exact roster-position counts, not just the general scoring_type string.
+This is the piece a typical hosted connector does not expose: the full
+stat-modifier table and exact roster-position counts, not just the general
+scoring_type string.
 """
 
 from __future__ import annotations

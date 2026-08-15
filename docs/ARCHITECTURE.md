@@ -18,7 +18,7 @@ roster-position table rather than a hardcoded list.
 
 ### On alternatives
 
-A hosted Yahoo connector (Flaim) was evaluated before this repo was written.
+A hosted Yahoo connector was evaluated before this repo was written.
 It is not the case that it, or any other integration path, bypasses Yahoo's
 API approval process — **Yahoo access was observed blocked pending
 provisioning on both the hosted connector and this local server.** Any earlier
@@ -33,30 +33,64 @@ and a testable optimizer/projection layer.
 ## Data flow
 
 ```
-Yahoo Fantasy Sports API   (read-only, fspt-r; access pending approval)
+  env.py -> config.py            (.env loaded; real environment wins)
         |
         v
-  auth/oauth_client.py  <---> auth/token_vault.py (single file, outside the repo)
+Yahoo Fantasy Sports API   (GET only, fspt-r; access pending approval)
         |
         v
-  yahoo/client.py  ---cache---> cache.py (TTL; labels age + stale on every read)
-        |
+  auth/oauth_client.py  <---> auth/token_vault.py -> auth/protection.py
+        |                     (one file outside the repo;  DPAPI on Windows,
+        |                      atomic replace)          0600 on POSIX
+        v
+  yahoo/client.py  ---cache---> cache.py (TTL; age + stale labels;
+        |                                 stale fallback on upstream failure)
         v
   yahoo/parsers/*.py  -> yahoo/models.py (typed dataclasses)
         |
         v
-  server.py tools (get_league_settings, get_team_roster, get_free_agents,
-                    get_transactions)
-        |
+  server.py tools -> errors.py envelopes on every expected failure
+        |            (get_league_settings, get_team_roster, get_free_agents,
+        |             get_transactions, normalize_projection, optimize_lineup,
+        |             token_vault_status)
         v
   projections/adapter.py + explosive_play_model.py
-        |                        (normalizes raw stats; does NOT score)
+        |                   (normalizes raw stats and reports
+        |                    estimation_basis; does NOT score)
         v
   [hand off stat_line to a separate scoring MCP, e.g. matty-fantasy-mcp]
         |
         v
   optimizer/exact_slot.py  (slots come from LeagueSettings.starter_slots())
+
+  logging_utils.py wraps all of the above: every message, argument, context
+  payload, and exception chain is scrubbed before it is emitted.
 ```
+
+## Implemented vs. planned Yahoo resources
+
+Implemented today: league settings and stat modifiers, roster positions, team
+rosters, available players, and transactions (read only). **Standings and
+matchups are planned, not implemented** — they are named in the Yahoo access
+request and will follow the same read-only pattern, but no tool for them
+exists in this build.
+
+## Runtime contracts
+
+* **Errors.** Every expected failure is a typed exception in `errors.py`
+  carrying `error_type`, `auth_required`, `not_provisioned`, and `retryable`,
+  which MCP tools return as a structured envelope with `data: null`. Nothing
+  escapes as an uncaught FastMCP `ToolError`; unexpected exceptions are
+  reduced to a scrubbed `internal_error`.
+* **Caching.** Fresh hits are served as fresh. An expired entry is refreshed.
+  If that refresh fails for an upstream transport/service reason and previous
+  data exists, the previous data is served with `stale: true`, its real
+  `age_seconds`, `refresh_failed: true`, and a structured `refresh_error`. A
+  forced refresh never falls back silently, and parser or programming errors
+  are never disguised as stale data.
+* **Read-only transport.** Yahoo Fantasy data is fetched with GET and nothing
+  else. The single POST in the package is the OAuth token exchange, to Yahoo's
+  exact token endpoint.
 
 ## Deliberate non-goals
 
@@ -66,10 +100,12 @@ Yahoo Fantasy Sports API   (read-only, fspt-r; access pending approval)
 - **No news or injury sourcing.** That belongs to NFL MCP.
 - **No write tools.** See `THREAT_MODEL.md`.
 - **No live Yahoo integration test.** Yahoo API access is pending approval, so
-  the parsers are exercised only against synthetic fixtures shaped to match
-  Yahoo's documented JSON contract. Once access is granted, re-run
-  `tests/contract/` against a sanitized live pull to confirm the shape
-  assumption still holds.
+  the parsers are exercised only against synthetic fixtures and mocked
+  responses shaped to match Yahoo's documented JSON contract. The FastMCP
+  contract tests prove this server behaves correctly *given* that shape; they
+  cannot prove the shape matches production. Once access is granted, re-run
+  `tests/contract/` against a sanitized live pull to confirm the assumption
+  still holds. Live Yahoo integration is **not** verified.
 
 ## Known open item: fixtures and stat IDs are synthetic
 

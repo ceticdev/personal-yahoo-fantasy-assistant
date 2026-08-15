@@ -22,5 +22,9 @@ client_secret*.json
 .serena/
 reports/
 
+# Release build output (produced by scripts/make_release.py)
+dist/
+*.zip
+
 # OS
 .DS_Store

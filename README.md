@@ -28,34 +28,66 @@ are cached in-process with a short TTL so repeated questions in one session do
 not produce repeated Yahoo calls. Only the `fspt-r` (read) OAuth scope is
 requested; `fspt-w` is never requested.
 
-**Yahoo resources this application intends to read:**
+**Yahoo resources this application reads.** The table separates what is built
+today from what is planned, so nothing here overstates the current state:
 
-| Resource | Why |
-|---|---|
-| League settings and stat modifiers | Know the league's actual scoring rules rather than assuming a preset |
-| Roster positions | Know the league's real starting slots (including flex) |
-| Team rosters | Know which players are on the user's own team |
-| Available players (free agents / waivers) | Suggest pickups the user then makes by hand in Yahoo |
-| Transactions | Recent league adds/drops/trades for context |
-| Standings | Season context for start/sit decisions |
-| Matchups | Weekly opponent context for start/sit decisions |
+| Resource | Status | Why |
+|---|---|---|
+| League settings and stat modifiers | **Implemented** (`get_league_settings`) | Know the league's actual scoring rules rather than assuming a preset |
+| Roster positions | **Implemented** (part of `get_league_settings`) | Know the league's real starting slots, including flex |
+| Team rosters | **Implemented** (`get_team_roster`) | Know which players are on the user's own team |
+| Available players (free agents / waivers) | **Implemented** (`get_free_agents`) | Suggest pickups the user then makes by hand in Yahoo |
+| Transactions | **Implemented** (`get_transactions`) — read only | Recent league adds/drops/trades for context |
+| Standings | *Planned, not implemented* | Season context for start/sit decisions |
+| Matchups | *Planned, not implemented* | Weekly opponent context for start/sit decisions |
+
+Standings and matchups are in scope for the access request and will use the
+same read-only pattern, but no tool for them exists in this build.
+
+The complete registered tool surface is seven tools: the four Yahoo reads
+above, plus `normalize_projection`, `optimize_lineup`, and
+`token_vault_status`. The latter three touch no Yahoo endpoint at all.
 
 **No write operations exist.** There is no add, drop, trade, waiver claim,
-lineup submission, or settings change anywhere in this codebase. That is
-enforced by a test (`tests/contract/test_no_write_tools.py`) that fails if any
-registered MCP tool name contains a write verb. Every recommendation this
-server produces is executed by the user by hand in Yahoo's own UI. The
+lineup submission, or settings change anywhere in this codebase. Three
+separate tests enforce that: no registered tool name contains a write verb
+(`tests/contract/test_no_write_tools.py`), every Yahoo Fantasy data request is
+a GET with the write verbs sabotaged, and the only POST in the package goes to
+Yahoo's exact OAuth token endpoint
+(`tests/contract/test_read_only_transport.py`). The requested scope is exactly
+`fspt-r`; `fspt-w` appears in no code literal anywhere. Every recommendation
+this server produces is executed by the user by hand in Yahoo's own UI. The
 rationale and the bar that would have to be cleared before any write tool
 existed are in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
 
 **Credential handling.** The OAuth client ID/secret come from the environment
-at process start. The token pair lives in exactly one file outside the
-repository (default `~/.config/yahoo-fantasy-mcp/token.json`), never in the MCP
-client config. Tokens are excluded from Git: `.gitignore` blocks `.env`,
-`token.json`, `*.token.json`, `.yahoo_token.json`, `*.pem`, and `*.key`, and no
-credential or token has ever been committed to this repository. See
-[`docs/SECURITY.md`](docs/SECURITY.md), including its explicit note on what
-file-permission protection is and is not available on Windows.
+at process start (optionally via a local `.env`, which is never committed).
+The token pair lives in exactly one file outside the repository (default
+`~/.config/yahoo-fantasy-mcp/token.json`), never in the MCP client config.
+
+At rest, that file is protected per platform:
+
+* **Windows** (the production machine): the token JSON is encrypted with
+  DPAPI, bound to the current Windows user, before it is written. No plaintext
+  token is ever stored. This fails closed — if DPAPI is unavailable, the save
+  raises rather than falling back to plaintext.
+* **POSIX**: the file is written atomically with `0600`, and loose modes are
+  repaired on load.
+
+Tokens are excluded from Git: `.gitignore` blocks `.env`, `token.json`,
+`*.token.json`, `.yahoo_token.json`, `*.pem`, and `*.key`, and no credential or
+token has ever been committed to this repository. Logs are scrubbed of token
+material on every path — message, interpolated arguments, structured context,
+and rendered exception chains. See [`docs/SECURITY.md`](docs/SECURITY.md) for
+the storage format, migration, recovery, and how to revoke the token.
+
+**Failure handling.** Every expected failure — no credentials, no token, a
+corrupt or unreadable token, a failed refresh, Yahoo unreachable, Yahoo 401,
+Yahoo's provisioning 403 — comes back as a structured result carrying
+`error`, `error_type`, `auth_required`, `not_provisioned`, `retryable`, and a
+null `data`, rather than an uncaught error. Nothing in that envelope contains a
+token, an authorization code, a client secret, an authorization header, or an
+uncapped provider body.
 
 ## Where this sits in the author's setup
 
@@ -91,31 +123,47 @@ off. It also does not source news or injury reports.
   but no specific `stat_value("78")` result from a fixture should be treated as
   authoritative for a real league.
 - **The explosive-play rates are unfitted placeholders**, labeled
-  `basis="unfitted_default_placeholder"` in every estimate the model returns.
+  `estimation_basis="unfitted_default_placeholder"` on every estimate
+  `normalize_projection` returns. Treat that label as "this number is a guess."
+- **Standings and matchups are not implemented**, only planned.
+
+What *is* verified, on both Windows and Linux across Python 3.11 and 3.12 in
+CI: the full test suite including real FastMCP client/server contract tests
+for all seven tools, the read-only transport guarantees, the token protection
+and its fail-closed behavior, the stale-fallback policy, log redaction, a
+secret scan, and a clean-release archive check.
 
 ## Layout
 
 ```
 src/yahoo_fantasy_mcp/
+  env.py                     locates and loads the repository .env (never .env.example)
+  config.py                  environment-driven config; real env always beats .env
+  errors.py                  typed errors + the structured error envelope
+  logging_utils.py           JSON logging with end-to-end secret redaction
   auth/token_vault.py        single-file OAuth token store, atomic writes
+  auth/protection.py         Windows DPAPI / POSIX 0600 token protection at rest
   auth/oauth_client.py       authorization-code + refresh flow, fspt-r scope only
   yahoo/models.py            typed dataclasses: LeagueSettings, StatModifier, RosterPlayer, Transaction
-  yahoo/client.py            HTTP wrapper: cache-aware, redacted context logging, typed errors
+  yahoo/client.py            GET-only HTTP wrapper: cache-aware, typed errors
   yahoo/parsers/             league_settings.py, roster.py, players.py, transactions.py
-  cache.py                   TTL cache that labels every read with age and a stale flag
+  cache.py                   TTL cache with age/stale labeling and stale fallback
   projections/adapter.py     normalizes raw stat lines from any source into one shape
   projections/explosive_play_model.py   rate model for 40+ plays / long TDs (unfitted)
   optimizer/exact_slot.py    dynamic-program lineup optimizer over the league's real slots
   server.py                  FastMCP stdio entrypoint, read-only tools only
-scripts/obtain_yahoo_token.py  one-time interactive OAuth helper
+scripts/
+  obtain_yahoo_token.py      one-time interactive OAuth helper
+  secret_scan.py             tracked-file secret scan (filenames + categories only)
+  make_release.py            git-archive release build + clean-archive verification
 tests/
   fixtures/    synthetic Yahoo-shaped JSON (league settings, roster, free agents, transactions)
-  unit/        parser, cache, vault, optimizer, explosive-play model tests
-  contract/    parser-vs-model shape checks and the no-write-tools guard
+  unit/        env, cache, vault, token protection, redaction, parser, optimizer, model tests
+  contract/    FastMCP in-memory client tests, read-only transport, packaging, no-write-tools
 docs/
   ARCHITECTURE.md   design notes and data flow
   THREAT_MODEL.md   why there are no write tools, and what would have to be true first
-  SECURITY.md       token handling rules and their platform limits
+  SECURITY.md       token storage, redaction, migration, recovery, and revocation
 ```
 
 ## Setup
@@ -138,7 +186,16 @@ python scripts/obtain_yahoo_token.py   # one-time interactive OAuth, read-only s
 ```
 
 `.env.example` documents every supported variable and ships with all
-credential values blank. Add the stdio entry to your MCP client config,
+credential values blank. The server loads a repository `.env` automatically,
+including when launched by the installed console script from an unrelated
+working directory; real environment variables always take precedence over
+`.env`, and `.env.example` itself is never loaded.
+
+To revoke access: delete the token file (its path is reported by
+`token_vault_status`) and remove the app's permission in your Yahoo account
+settings. See [`docs/SECURITY.md`](docs/SECURITY.md).
+
+Add the stdio entry to your MCP client config,
 pointing at `yahoo-fantasy-mcp` (installed via the `pyproject.toml` script
 entry) or `python -m yahoo_fantasy_mcp.server`. Do not put tokens or the client
 secret in that config file — they belong in `.env` and the token vault file
@@ -151,4 +208,22 @@ only.
 - Every projection/stat response is labeled with its source and whether 40+
   play counts were available or estimated.
 - Every cached read is labeled with its age and TTL rather than being served as
-  if fresh.
+  if fresh. If a refresh fails and previous data is served instead, it is
+  flagged `stale: true` with `refresh_failed: true` and a structured
+  `refresh_error` — never presented as current.
+- A forced refresh never silently falls back to old data, and a parser or
+  programming error is never disguised as a stale-data answer.
+
+## Releases
+
+```bash
+python scripts/make_release.py     # git archive from HEAD + verification
+python scripts/secret_scan.py      # tracked-file secret scan
+```
+
+The archive is built with `git archive`, so it contains tracked sources only —
+build products and ignored files cannot get in by construction. It is then
+verified: a single top-level directory, `.env.example` present, and no `.git`,
+`.venv`, `.pytest_cache`, `__pycache__`, `.pyc`, egg-info, `.env`,
+token/credential file, key material, local report, or parent-folder document.
+The check prints the entry count and SHA-256.

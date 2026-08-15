@@ -67,6 +67,11 @@ class NormalizedStatLine:
     estimated_fields: tuple[str, ...]
     unavailable_fields: tuple[str, ...]
     assumption: str
+    #: Provenance of any estimated value: the explosive-play model's `basis`
+    #: ("unfitted_default_placeholder", or "fitted_from_N_historical_game_lines"
+    #: when a fitted model was used). None when nothing was estimated, so a
+    #: caller can distinguish "no estimate happened" from "estimated, unfitted".
+    estimation_basis: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -76,7 +81,11 @@ class NormalizedStatLine:
             "provided_fields": list(self.provided_fields),
             "estimated_fields": list(self.estimated_fields),
             "unavailable_fields": list(self.unavailable_fields),
+            "zero_valued_provided_fields": [
+                name for name in self.provided_fields if float(self.stat_line.get(name, 0.0)) == 0.0
+            ],
             "assumption": self.assumption,
+            "estimation_basis": self.estimation_basis,
         }
 
 
@@ -97,6 +106,7 @@ def normalize_stat_line(
     line: dict[str, float] = {key: float(raw[key]) for key in provided}
     estimated: set[str] = set()
     unavailable: set[str] = set()
+    estimation_bases: set[str] = set()
 
     for total_field, td_field in (
         ("passing_40_plus", "passing_40_plus_tds"),
@@ -119,27 +129,35 @@ def normalize_stat_line(
                 line[td_field] = estimate.expected_40_plus_tds
                 estimated.add(total_field)
                 estimated.add(td_field)
+                # Carry the model's provenance out to the caller rather than
+                # telling them to inspect a `basis` field we then discard.
+                estimation_bases.add(estimate.basis)
                 continue
 
         unavailable.add(total_field)
         unavailable.add(td_field)
 
+    # A call can be partly estimated and partly unavailable at once (volume
+    # supplied for one category but not another), so the assumption reports
+    # every state that actually applies rather than only the first one.
+    parts: list[str] = []
     if unavailable:
-        assumption = (
+        parts.append(
             "40+ play counts unavailable for: "
             f"{', '.join(sorted(unavailable))}. Treated as zero for scoring; "
             "this understates true points for any player with real explosive "
             "plays. Supply raw counts or opt into estimate_explosive_plays "
             "with volume stats to close this gap."
         )
-    elif estimated:
-        assumption = (
+    if estimated:
+        parts.append(
             f"40+ play counts for {', '.join(sorted(estimated))} are model "
-            "estimates, not observed counts -- see the explosive-play model's "
-            "`basis` field for how they were derived."
+            f"estimates, not observed counts. Basis: "
+            f"{', '.join(sorted(estimation_bases)) or 'unknown'}."
         )
-    else:
-        assumption = "All 40+ play fields were supplied directly by the source."
+    if not parts:
+        parts.append("All 40+ play fields were supplied directly by the source.")
+    assumption = " ".join(parts)
 
     return NormalizedStatLine(
         stat_line=line,
@@ -149,4 +167,9 @@ def normalize_stat_line(
         estimated_fields=tuple(sorted(estimated)),
         unavailable_fields=tuple(sorted(unavailable)),
         assumption=assumption,
+        estimation_basis=(
+            # Deterministic and singular in practice: one model supplies every
+            # estimate in a call. Joined defensively if that ever changes.
+            ", ".join(sorted(estimation_bases)) if estimation_bases else None
+        ),
     )

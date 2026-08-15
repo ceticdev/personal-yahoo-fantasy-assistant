@@ -1,8 +1,20 @@
 # Threat model: why there are no write tools
 
-**Status: no provider write tools exist in this codebase.** `tests/contract/test_no_write_tools.py`
-enforces this in CI-style fashion -- it fails if any registered MCP tool name
-contains a write verb (add, drop, trade, submit, update, delete, etc.).
+**Status: no provider write tools exist in this codebase.** Three tests
+enforce that, at two different levels:
+
+1. `tests/contract/test_no_write_tools.py` fails if any registered MCP tool
+   *name* contains a write verb (add, drop, trade, submit, update, delete...).
+2. `tests/contract/test_read_only_transport.py` fails if any Yahoo Fantasy
+   data request uses anything but GET -- the write verbs are sabotaged during
+   the test, so a PUT hidden inside a read-sounding tool would fail loudly.
+3. The same file asserts that the only POST in the package targets Yahoo's
+   exact OAuth token endpoint, that no lineup-change resource is named
+   anywhere in `src/`, and that the requested scope is exactly `fspt-r` with
+   no `fspt-w` code literal in existence.
+
+The name test alone would prove nothing about the wire; that is why the other
+two exist.
 
 The standing guardrail this project is built around: never make a provider
 change without confirmation. Lineup recommendations are allowed; provider
@@ -29,9 +41,10 @@ be an executed transaction.
 3. **Idempotency and duplicate-submission protection**, since retries after
    a timeout are exactly the scenario that could double-submit a claim.
 4. **Freshness gating**: refuse to execute a write if the roster/league state
-   backing the decision is older than a short TTL (this server already
-   tracks `stale` on every read -- a write tool must refuse to act on stale
-   data rather than just warning about it).
+   backing the decision is older than a short TTL. This server already labels
+   every read with `stale`, `age_seconds`, and `refresh_failed`, so the
+   signal exists -- but a write tool must *refuse to act* on stale or
+   fallback-served data rather than merely warning about it.
 5. **Audit logging of every write attempt** (redacted per `SECURITY.md`),
    separate from the general request log, kept longer.
 6. **Scope separation at the OAuth level.** The current token is `fspt-r`
