@@ -21,7 +21,8 @@ def test_parse_league_settings():
     assert settings.waiver_rule == "continuous"
     assert settings.uses_faab is False
 
-    # Full stat modifier table, not just scoring_type -- this is the gap vs Flaim.
+    # Full stat modifier table, not just scoring_type -- the gap this repo
+    # exists to close versus a hosted connector.
     assert settings.stat_value("5") == 6.0  # passing TD
     assert settings.stat_value("6") == -1.0  # interception
     assert settings.stat_value("78") == 3.0  # 40+ play

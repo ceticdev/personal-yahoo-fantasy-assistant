@@ -15,14 +15,26 @@ from typing import Any
 import httpx
 
 from ..config import READ_ONLY_SCOPE
+from ..errors import (
+    OAuthTransportError,
+    TokenMissingError,
+    TokenRefreshError,
+    YahooMcpError,
+    truncate_provider_body,
+)
+from ..logging_utils import register_secret
 from .token_vault import StoredToken, TokenVault
 
 AUTHORIZATION_URL = "https://api.login.yahoo.com/oauth2/request_auth"
 TOKEN_URL = "https://api.login.yahoo.com/oauth2/get_token"
 
 
-class OAuthError(RuntimeError):
-    pass
+class OAuthError(TokenRefreshError):
+    """Backwards-compatible name for an OAuth-layer failure.
+
+    Subclasses TokenRefreshError so an uncaught one still surfaces as a typed,
+    auth_required envelope rather than an internal error.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,28 +90,44 @@ class YahooOAuthClient:
 
         current = self.vault.load()
         if current is None:
-            raise OAuthError(
-                "No token in the vault. Run scripts/obtain_yahoo_token.py once to "
-                "complete the interactive OAuth flow."
+            raise TokenMissingError(
+                "No Yahoo token is vaulted. Run scripts/obtain_yahoo_token.py once "
+                "to complete the interactive read-only OAuth flow."
             )
         if current.is_expired:
-            return self.refresh(current)
+            try:
+                return self.refresh(current)
+            except YahooMcpError:
+                raise
+            except Exception as exc:  # defensive: never leak a raw exception
+                raise TokenRefreshError(
+                    f"Refreshing the Yahoo token failed: {type(exc).__name__}"
+                ) from exc
         return current
 
     def _post_token(self, data: dict[str, str]) -> dict[str, Any]:
+        register_secret(self.client_secret)
         auth = (self.client_id, self.client_secret)
+        # The ONLY POST this package makes, and only ever to Yahoo's token
+        # endpoint. See tests/contract/test_read_only_transport.py.
         try:
             response = httpx.post(TOKEN_URL, data=data, auth=auth, timeout=15.0)
         except httpx.HTTPError as exc:
-            raise OAuthError(f"Yahoo token endpoint unreachable: {exc}") from exc
+            raise OAuthTransportError(
+                f"Yahoo token endpoint unreachable: {type(exc).__name__}"
+            ) from exc
         if response.status_code != 200:
-            # Deliberately do not include response.text verbatim -- Yahoo error
-            # bodies do not carry secrets, but we still cap length defensively.
-            raise OAuthError(
+            # Yahoo error bodies are capped and scrubbed before they go anywhere.
+            raise TokenRefreshError(
                 f"Yahoo token endpoint returned {response.status_code}: "
-                f"{response.text[:200]}"
+                f"{truncate_provider_body(response.text)}"
             )
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise TokenRefreshError(
+                "Yahoo token endpoint returned a non-JSON body"
+            ) from exc
 
     def _store_response(
         self, response: dict[str, Any], fallback_refresh_token: str | None = None
@@ -111,7 +139,12 @@ class YahooOAuthClient:
             "scope", self.scope
         )
         if not access_token or not refresh_token:
-            raise OAuthError("Yahoo token response is missing access_token/refresh_token")
+            raise TokenRefreshError(
+                "Yahoo token response is missing access_token/refresh_token"
+            )
+        # Register before the values can reach any log line.
+        register_secret(access_token)
+        register_secret(refresh_token)
         if self.scope not in str(granted_scope) and granted_scope != self.scope:
             # Non-fatal: Yahoo does not always echo scope back identically.
             # Record what we asked for, since that is what governs behavior here.

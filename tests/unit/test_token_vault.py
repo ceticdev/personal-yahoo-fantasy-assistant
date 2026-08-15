@@ -7,7 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 import pytest
 
-from yahoo_fantasy_mcp.auth.token_vault import StoredToken, TokenVault, TokenVaultError
+from yahoo_fantasy_mcp.auth.token_vault import StoredToken, TokenVault
+from yahoo_fantasy_mcp.errors import TokenMalformedError, TokenMissingError
 
 # POSIX mode bits are only meaningfully enforced on POSIX filesystems. On
 # Windows, os.chmod() only toggles the read-only attribute, so a token file
@@ -75,17 +76,28 @@ def test_load_repairs_overly_permissive_file(tmp_path):
     assert mode == 0o600
 
 
-def test_malformed_token_file_raises_vault_error(tmp_path):
+def test_malformed_token_file_raises_a_typed_error(tmp_path):
     path = tmp_path / "token.json"
     path.write_text('{"unexpected_field": true}')
     path.chmod(0o600)
     vault = TokenVault(path)
 
-    try:
+    with pytest.raises(TokenMalformedError) as excinfo:
         vault.load()
-        assert False, "expected TokenVaultError"
-    except TokenVaultError:
-        pass
+
+    # Typed and flagged, so an MCP tool can turn it into a structured envelope.
+    assert excinfo.value.error_type == "token_malformed"
+    assert excinfo.value.auth_required is True
+
+
+def test_require_raises_a_typed_missing_error_when_there_is_no_token(tmp_path):
+    vault = TokenVault(tmp_path / "absent.json")
+
+    with pytest.raises(TokenMissingError) as excinfo:
+        vault.require()
+
+    assert excinfo.value.error_type == "token_missing"
+    assert excinfo.value.auth_required is True
 
 
 def test_is_expired_true_when_past_expiry():

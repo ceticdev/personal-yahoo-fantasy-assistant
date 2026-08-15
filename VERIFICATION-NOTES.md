@@ -9,39 +9,60 @@ below depends on a file, dataset, or environment that is not in this repo.
 python3.11 -m venv .venv
 source .venv/bin/activate        # .venv\Scripts\activate on Windows
 pip install -e ".[dev]"
-pytest
+pytest -rs
+python scripts/secret_scan.py
+python scripts/make_release.py
 ```
 
 ## Last recorded run
 
 - **Date:** August 15, 2026
 - **Environment:** Windows 11, CPython 3.11.9, fresh venv, `pip install -e ".[dev]"`
-- **Result:** `41 passed, 2 skipped`
+- **Result:** `163 passed, 2 skipped`
 
 The 2 skips are the two POSIX file-mode assertions in
-`tests/unit/test_token_vault.py`. They are skipped on Windows because Windows
-does not enforce POSIX permission bits — see
-[What is NOT verified](#what-is-not-verified). On Linux/macOS they run and are
-expected to pass.
+`tests/unit/test_token_vault.py`, skipped on Windows because Windows does not
+enforce POSIX permission bits. That is not an untested gap: on Windows the
+token is DPAPI-encrypted instead, and the real DPAPI round trip is exercised
+by `test_real_dpapi_round_trip_on_windows`, which runs on Windows and is
+skipped on POSIX. On Linux the mode assertions run and the DPAPI path is
+covered by mocks. Every platform-specific guarantee is asserted somewhere on
+every platform.
+
+CI runs the same suite on **Ubuntu and Windows** across **Python 3.11 and
+3.12** (`.github/workflows/ci.yml`), with no Yahoo credentials and no
+repository secrets.
 
 ## What the suite covers
 
-| Item | Where |
-|---|---|
-| Parsers round-trip Yahoo-shaped fixtures (settings, roster, free agents, transactions) | `tests/unit/test_parsers.py` |
-| `get_league_settings` surfaces the full stat-modifier table, not just `scoring_type` | `tests/unit/test_parsers.py` |
-| Starter slots are read from `LeagueSettings.starter_slots()`, not a hardcoded list | `tests/unit/test_optimizer.py` |
-| Optimizer's DP result matches an independent Hungarian (`scipy.optimize.linear_sum_assignment`) optimum on a randomized pool | `tests/unit/test_optimizer.py` |
-| Ten unique starters; duplicate and flex slots each filled exactly once | `tests/unit/test_optimizer.py` |
-| Unfillable roster returns `complete: false` + `missing_slots` + a warning | `tests/unit/test_optimizer.py` |
-| Malformed/missing Yahoo sections raise a typed error instead of silently returning empty | `tests/contract/` |
-| Token vault round-trips, writes atomically to the target path, rejects malformed files, and never exposes raw tokens via `.redacted()` | `tests/unit/test_token_vault.py` |
-| Token vault writes `0600` and repairs loose modes **on POSIX** | `tests/unit/test_token_vault.py` (skipped on Windows) |
-| `redact()` masks `access_token` / `refresh_token` / `client_secret` / `authorization` / `password` keys and `Bearer ...` substrings in log **context** payloads | `tests/unit/test_logging_redaction.py` |
-| Cache envelope labels every read with `age_seconds`, `ttl_seconds`, and `stale`; an expired key is re-fetched rather than served | `tests/unit/test_cache.py` |
-| Projection adapter leaves 40+ fields unavailable unless the caller opts into estimation | `tests/unit/test_projection_adapter.py` |
-| Explosive-play model labels every estimate `basis="unfitted_default_placeholder"` unless fit from real history | `tests/unit/test_explosive_play_model.py` |
-| No registered MCP tool name contains a write verb (add/drop/trade/submit/update/delete/…) | `tests/contract/test_no_write_tools.py` |
+| Area | Item | Where |
+|---|---|---|
+| Config | Repository `.env` is loaded; real environment variables override it; lookup works from an unrelated working directory; a missing `.env` is a silent no-op; `.env.example` is never loaded | `tests/unit/test_env_loading.py` |
+| Parsing | Parsers round-trip Yahoo-shaped fixtures (settings, roster, free agents, transactions) | `tests/unit/test_parsers.py` |
+| Parsing | `get_league_settings` surfaces the full stat-modifier table, not just `scoring_type` | `tests/unit/test_parsers.py` |
+| Parsing | Malformed/missing Yahoo sections raise a typed error instead of silently returning empty | `tests/contract/` |
+| Optimizer | Starter slots come from `LeagueSettings.starter_slots()`, not a hardcoded list | `tests/unit/test_optimizer.py` |
+| Optimizer | DP result matches an independent Hungarian (`scipy.optimize.linear_sum_assignment`) optimum on a randomized pool | `tests/unit/test_optimizer.py` |
+| Optimizer | Ten unique starters; duplicate and flex slots each filled exactly once; unfillable rosters report `complete: false` + `missing_slots` | `tests/unit/test_optimizer.py` |
+| Token storage | DPAPI-protected file contains no plaintext token material and round-trips | `tests/unit/test_token_protection.py` |
+| Token storage | A DPAPI failure **fails closed** — raises, writes nothing, leaves no temp file, never falls back to plaintext | `tests/unit/test_token_protection.py` |
+| Token storage | A legacy plaintext token is migrated to encrypted form on first load | `tests/unit/test_token_protection.py` |
+| Token storage | A token encrypted for another Windows user reports a typed, actionable error | `tests/unit/test_token_protection.py` |
+| Token storage | Real DPAPI round trip against `crypt32` | `tests/unit/test_token_protection.py` (Windows only) |
+| Token storage | POSIX `0600` write and loose-mode repair | `tests/unit/test_token_vault.py` (POSIX only) |
+| Token storage | Status output and `.redacted()` never expose raw token values | both files above |
+| Redaction | A sentinel secret never appears in captured output via message, interpolated args, structured context, exception text, or a chained exception | `tests/unit/test_logging_redaction.py` |
+| Redaction | Repeated `configure_logging()` does not stack handlers; records do not propagate to non-redacting root handlers | `tests/unit/test_logging_redaction.py` |
+| Caching | Fresh hit → `stale=false`; expired + success → new data, `stale=false`; expired + transport/service failure → previous data with `stale=true`, real `age_seconds`, `refresh_failed=true`, structured `refresh_error`; no cache + failure → error; `force_refresh` + failure → error, never a silent fallback; parser/validation/programming errors never disguised as stale data | `tests/unit/test_cache.py` (injected clock, no sleeping) |
+| MCP contract | All seven tools called through a real in-memory FastMCP `Client`: successful pure-tool calls, mocked successful Yahoo responses, no credentials, credentials without a token, malformed token, unreadable token, refresh failure, OAuth transport failure, Yahoo 401, provisioning 403, transport failure, stale fallback, forced-refresh failure, invalid optimizer/projection input | `tests/contract/test_fastmcp_contract.py` |
+| MCP contract | No expected operational failure surfaces as an uncaught FastMCP `ToolError` | `tests/contract/test_fastmcp_contract.py` |
+| Read-only | Every Yahoo Fantasy data request uses GET, with `httpx.put/post/patch/delete` sabotaged during the test | `tests/contract/test_read_only_transport.py` |
+| Read-only | The only POST in the package targets Yahoo's exact token endpoint; no write-verb call exists elsewhere in `src/` | `tests/contract/test_read_only_transport.py` |
+| Read-only | The requested OAuth scope is exactly `fspt-r`; no `fspt-w` code literal exists | `tests/contract/test_read_only_transport.py` |
+| Read-only | No registered MCP tool name contains a write verb | `tests/contract/test_no_write_tools.py` |
+| Projections | `estimation_basis` is null when nothing was estimated, `unfitted_default_placeholder` for the default model, and the fitted label for a fitted model; provided / estimated / unavailable / zero-valued fields stay distinguishable | `tests/unit/test_projection_adapter.py` |
+| Packaging | The release checker rejects each forbidden category (`.git`, `.venv`, `.pytest_cache`, `__pycache__`, `.pyc`, egg-info, `.env`, token/credential files, key material, local reports, parent-folder documents), requires one top-level directory, and requires `.env.example` | `tests/contract/test_release_packaging.py` |
+| Packaging | The secret scanner finds a planted secret and reports categories without values | `tests/contract/test_release_packaging.py` |
 
 ## What is NOT verified
 
@@ -50,41 +71,34 @@ expected to pass.
   access was observed blocked pending provisioning on both integration paths
   that were tried — a hosted connector and this local server — so
   `yahoo/client.py` and `auth/oauth_client.py` are written against Yahoo's
-  documented JSON contract and exercised only against synthetic fixtures.
-  Nothing here should be read as "live Yahoo integration verified."
+  documented JSON contract and exercised only against synthetic fixtures and
+  mocks. Nothing here should be read as "live Yahoo integration verified."
 - **All fixtures are synthetic.** Every file in `tests/fixtures/` was
   hand-authored to match Yahoo's documented response shape. None was captured
   from Yahoo. League, team, and player identities in them are invented.
 - **Stat IDs and stat modifier values in the fixtures are illustrative and
   uncalibrated.** They must be replaced or recalibrated from a sanitized real
   response after Yahoo approval before any specific stat value is trusted.
-- **No live FastMCP contract coverage.** The test suite checks parser and model
-  contracts and asserts that no write-verb tool is registered. It does not
-  start a FastMCP server, drive a stdio client end to end, or verify tool
-  schemas over the wire.
-- **Windows token files do not get real POSIX `0600` protection.** The vault
-  calls `os.chmod(0o600)`, but on Windows that only toggles the read-only
-  attribute; group/other bits are not enforced by the filesystem. The `0600`
-  guarantee holds on POSIX only. See `docs/SECURITY.md`.
-- **Log redaction is not comprehensive.** `redact()` covers structured
-  **context** payloads passed via `log_context()`. It does not rewrite the free
-  text of a log message itself, and it matches a fixed key list plus a
-  `Bearer ...` pattern rather than detecting secrets generally. It is defense
-  in depth on top of not logging token material in the first place, not a
-  guarantee.
-- **There is no stale-fallback behavior.** The cache labels age and staleness
-  and re-fetches expired keys; it does not serve an over-age value when a fetch
-  fails. Do not read the `stale` flag as evidence of a fallback path.
+- **Standings and matchups are not implemented.** They are named in the access
+  request as planned resources; no tool for them exists in this build.
 - **Explosive-play rates are unfitted.** No historical play-by-play dataset was
-  available to fit against, so the defaults are placeholders, labeled as such
-  in every returned estimate.
+  available to fit against, so the defaults are placeholders, reported as
+  `estimation_basis="unfitted_default_placeholder"` on every estimate.
+- **The mocked Yahoo responses are shaped by us, not by Yahoo.** The contract
+  tests prove this server behaves correctly *given* Yahoo's documented shape.
+  They cannot prove the documented shape matches production. Re-run
+  `tests/contract/` against a sanitized live pull once access is granted.
+- **DPAPI is not a defense against the same user account.** It binds the token
+  to the current Windows user, which stops another user, another machine, or a
+  copied backup file from reading it. Malware already running as that user can
+  still ask DPAPI to decrypt. That is inherent to the mechanism.
 
 ## Conclusion
 
-The parts of this build that do not require live Yahoo access — token vault,
-parsers, cache, optimizer, projection adapter, explosive-play model, server
-wiring, and the no-write-tools guard — are built and tested. The parts that do
-require live Yahoo access are structured against the documented API contract
-and remain unverified against a real response, pending the Yahoo access
-application. That gate has to clear before this server can honestly be called
-"connected."
+The parts of this build that do not require live Yahoo access — configuration,
+token storage and protection, redaction, caching and stale fallback, parsers,
+optimizer, projection provenance, the MCP tool contract, the read-only
+guarantees, and packaging — are built and tested on both platforms. The parts
+that require live Yahoo access remain unverified against a real response,
+pending the access application. That gate has to clear before this server can
+honestly be called "connected."

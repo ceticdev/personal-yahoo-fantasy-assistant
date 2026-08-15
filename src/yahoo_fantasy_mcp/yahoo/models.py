@@ -1,6 +1,6 @@
 """Typed models for Yahoo Fantasy Sports API data.
 
-Flaim's `get_league_info` returns the general scoring type (e.g. "head" /
+A typical hosted connector returns only the general scoring type (e.g. "head" /
 points format) but not the full stat-modifier table, which is the piece the
 custom scoring engine actually needs to cross-check against Yahoo's own
 config. These models exist to carry that full table plus the exact roster
