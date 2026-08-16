@@ -20,6 +20,7 @@ GOOD_ENTRIES = [
     f"{PROJECT_NAME}/pyproject.toml",
     f"{PROJECT_NAME}/.env.example",
     f"{PROJECT_NAME}/src/yahoo_fantasy_mcp/server.py",
+    f"{PROJECT_NAME}/src/yahoo_fantasy_mcp/projections/explosive_play_calibration.json",
     f"{PROJECT_NAME}/tests/fixtures/roster_sample.json",
 ]
 
@@ -46,6 +47,7 @@ def test_a_clean_archive_passes(tmp_path):
         f"{PROJECT_NAME}/src/yahoo_fantasy_mcp/__pycache__/server.cpython-311.pyc",
         f"{PROJECT_NAME}/src/yahoo_fantasy_mcp/server.pyc",
         f"{PROJECT_NAME}/src/yahoo_fantasy_mcp_v2.egg-info/PKG-INFO",
+        f"{PROJECT_NAME}/build/lib/server.py",
         f"{PROJECT_NAME}/.env",
         f"{PROJECT_NAME}/.env.local",
         f"{PROJECT_NAME}/token.json",

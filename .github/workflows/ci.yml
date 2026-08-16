@@ -72,7 +72,7 @@ jobs:
       - name: Reject tracked build artifacts and secrets
         run: |
           set -euo pipefail
-          if git ls-files | grep -E '(\.pytest_cache|__pycache__|\.pyc$|(^|/)\.env$|token.*\.json$|credential.*\.json$|\.pem$|\.key$|\.venv|egg-info)'; then
+          if git ls-files | grep -E '(\.pytest_cache|__pycache__|\.pyc$|(^|/)\.env$|token.*\.json$|credential.*\.json$|\.pem$|\.key$|\.venv|egg-info|(^|/)build(/|$))'; then
             echo "::error::tracked path matches a forbidden pattern"
             exit 1
           fi

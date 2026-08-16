@@ -24,6 +24,7 @@ reports/
 
 # Release build output (produced by scripts/make_release.py)
 dist/
+build/
 *.zip
 
 # OS

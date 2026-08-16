@@ -127,6 +127,8 @@ class _Response:
         (lambda c: c.get_team_roster("999.l.100000.t.1"), "roster_sample.json"),
         (lambda c: c.get_free_agents("999.l.100000"), "free_agents_sample.json"),
         (lambda c: c.get_transactions("999.l.100000"), "transactions_sample.json"),
+        (lambda c: c.get_league_standings("999.l.100000"), "standings_sample.json"),
+        (lambda c: c.get_weekly_matchups("999.l.100000", week=9), "matchups_sample.json"),
     ],
 )
 def test_every_yahoo_data_request_uses_get_only(monkeypatch, call, fixture):
@@ -271,4 +273,6 @@ def test_yahoo_request_paths_are_all_read_resources():
         assert any(
             path.startswith(prefix) for prefix in ("league/", "team/")
         ), f"unexpected resource root: {path}"
-        assert path.endswith(("settings", "roster")) or "players" in path or "transactions" in path
+        assert path.endswith(("settings", "roster", "standings")) or any(
+            segment in path for segment in ("players", "transactions", "scoreboard")
+        )

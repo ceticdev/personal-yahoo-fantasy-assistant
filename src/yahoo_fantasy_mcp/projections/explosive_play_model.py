@@ -1,96 +1,124 @@
-"""Historical rate model for expected 40+ yard plays and long touchdowns.
+"""Calibrated rate model for expected 40+ yard plays and long touchdowns.
 
-Yahoo season-total projections do not carry 40+ play counts, so the
-optimizer's output is a slot-assignment check, not a fully custom-scored
-projection. This module exists to close that gap -- but honestly: the default
-rates below are **placeholders**, not a fit to real play-by-play data. No
-historical play-by-play or box-score dataset was available to fit against in
-this build. Call `fit_from_history()` with real season data before
-trusting this in a live decision; until then, every estimate this module
-returns is labeled with `basis` so it can never be mistaken for a measured
-rate.
+The packaged default is a reproducible offline fit over the supplied slim
+2020-2025 regular-season play-by-play files. It is still an estimate—not an
+observed Yahoo projection—so every returned estimate carries its basis label.
+The artifact loads fail-closed: missing or malformed data never degrades to
+invented rates.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from importlib.resources import files
 from typing import Any, Iterable, Mapping
 
 
 @dataclass(frozen=True, slots=True)
 class ExplosivePlayRates:
-    completion_40plus_rate: float  # 40+ pass plays per completion
-    rush_40plus_rate: float  # 40+ runs per rush attempt
-    reception_40plus_rate: float  # 40+ receptions per reception
-    td_share_of_40plus: float  # fraction of 40+ plays that are also touchdowns
+    completion_40plus_rate: float
+    rush_40plus_rate: float
+    reception_40plus_rate: float
+    td_share_of_40plus: float
     basis: str
+    passing_td_share_of_40plus: float | None = None
+    rushing_td_share_of_40plus: float | None = None
+    receiving_td_share_of_40plus: float | None = None
 
 
-# Deliberately conservative, round placeholder rates. NOT measured. See
-# module docstring. Replace by calling `fit_from_history()` with real
-# season data and passing the result into ExplosivePlayModel.
-DEFAULT_RATES = ExplosivePlayRates(
-    completion_40plus_rate=0.02,
-    rush_40plus_rate=0.015,
-    reception_40plus_rate=0.018,
-    td_share_of_40plus=0.35,
-    basis="unfitted_default_placeholder",
-)
+def _rate(name: str, value: Any) -> float:
+    result = float(value)
+    if not 0.0 <= result <= 1.0:
+        raise ValueError(f"Calibration rate {name} must be between 0 and 1")
+    return result
+
+
+def load_packaged_rates() -> ExplosivePlayRates:
+    """Load and validate the versioned calibration bundled with the package."""
+
+    resource = files(__package__).joinpath("explosive_play_calibration.json")
+    payload = json.loads(resource.read_text(encoding="utf-8"))
+    rates = payload.get("rates")
+    basis = payload.get("basis")
+    if not isinstance(rates, dict) or not isinstance(basis, str) or not basis.strip():
+        raise ValueError("Explosive-play calibration is missing rates or basis")
+    required = (
+        "completion_40plus_rate",
+        "rush_40plus_rate",
+        "reception_40plus_rate",
+        "td_share_of_40plus",
+        "passing_td_share_of_40plus",
+        "rushing_td_share_of_40plus",
+        "receiving_td_share_of_40plus",
+    )
+    missing = [name for name in required if name not in rates]
+    if missing:
+        raise ValueError(f"Explosive-play calibration is missing: {', '.join(missing)}")
+    return ExplosivePlayRates(
+        completion_40plus_rate=_rate("completion_40plus_rate", rates["completion_40plus_rate"]),
+        rush_40plus_rate=_rate("rush_40plus_rate", rates["rush_40plus_rate"]),
+        reception_40plus_rate=_rate("reception_40plus_rate", rates["reception_40plus_rate"]),
+        td_share_of_40plus=_rate("td_share_of_40plus", rates["td_share_of_40plus"]),
+        basis=basis,
+        passing_td_share_of_40plus=_rate(
+            "passing_td_share_of_40plus", rates["passing_td_share_of_40plus"]
+        ),
+        rushing_td_share_of_40plus=_rate(
+            "rushing_td_share_of_40plus", rates["rushing_td_share_of_40plus"]
+        ),
+        receiving_td_share_of_40plus=_rate(
+            "receiving_td_share_of_40plus", rates["receiving_td_share_of_40plus"]
+        ),
+    )
+
+
+DEFAULT_RATES = load_packaged_rates()
 
 
 def fit_from_history(games: Iterable[Mapping[str, Any]]) -> ExplosivePlayRates:
-    """Fit rates from historical game lines with real 40+ counts.
+    """Fit category rates from historical lines containing real 40+ counts."""
 
-    Each `games` entry may supply any subset of:
-      pass_completions, passing_40_plus, passing_40_plus_tds,
-      rush_attempts, rushing_40_plus, rushing_40_plus_tds,
-      receptions, receiving_40_plus, receiving_40_plus_tds
-
-    Raises ValueError if there isn't enough volume in any one category to
-    produce a rate -- silently returning a 0.0 rate from a near-empty sample
-    would look like a real fit and is worse than failing loudly.
-    """
-
-    totals = {
-        "pass_completions": 0.0,
-        "passing_40_plus": 0.0,
-        "passing_40_plus_tds": 0.0,
-        "rush_attempts": 0.0,
-        "rushing_40_plus": 0.0,
-        "rushing_40_plus_tds": 0.0,
-        "receptions": 0.0,
-        "receiving_40_plus": 0.0,
-        "receiving_40_plus_tds": 0.0,
-    }
+    keys = (
+        "pass_completions", "passing_40_plus", "passing_40_plus_tds",
+        "rush_attempts", "rushing_40_plus", "rushing_40_plus_tds",
+        "receptions", "receiving_40_plus", "receiving_40_plus_tds",
+    )
+    totals = {key: 0.0 for key in keys}
     game_count = 0
     for game in games:
         game_count += 1
         for key in totals:
             totals[key] += float(game.get(key, 0) or 0)
-
     if game_count == 0:
         raise ValueError("fit_from_history() needs at least one historical game line")
 
-    def _rate(count_key: str, volume_key: str) -> float:
-        volume = totals[volume_key]
-        if volume <= 0:
+    def ratio(numerator: str, denominator: str) -> float:
+        if totals[denominator] <= 0:
             raise ValueError(
-                f"Cannot fit a rate for {count_key}: zero {volume_key} in the supplied history"
+                f"Cannot fit a rate for {numerator}: zero {denominator} in supplied history"
             )
-        return totals[count_key] / volume
+        return totals[numerator] / totals[denominator]
 
-    total_40plus = totals["passing_40_plus"] + totals["rushing_40_plus"] + totals["receiving_40_plus"]
-    total_40plus_tds = (
-        totals["passing_40_plus_tds"] + totals["rushing_40_plus_tds"] + totals["receiving_40_plus_tds"]
+    passing_share = ratio("passing_40_plus_tds", "passing_40_plus")
+    rushing_share = ratio("rushing_40_plus_tds", "rushing_40_plus")
+    receiving_share = ratio("receiving_40_plus_tds", "receiving_40_plus")
+    total_explosive = sum(
+        totals[key] for key in ("passing_40_plus", "rushing_40_plus", "receiving_40_plus")
     )
-    td_share = (total_40plus_tds / total_40plus) if total_40plus > 0 else DEFAULT_RATES.td_share_of_40plus
-
+    total_tds = sum(
+        totals[key]
+        for key in ("passing_40_plus_tds", "rushing_40_plus_tds", "receiving_40_plus_tds")
+    )
     return ExplosivePlayRates(
-        completion_40plus_rate=_rate("passing_40_plus", "pass_completions"),
-        rush_40plus_rate=_rate("rushing_40_plus", "rush_attempts"),
-        reception_40plus_rate=_rate("receiving_40_plus", "receptions"),
-        td_share_of_40plus=td_share,
+        completion_40plus_rate=ratio("passing_40_plus", "pass_completions"),
+        rush_40plus_rate=ratio("rushing_40_plus", "rush_attempts"),
+        reception_40plus_rate=ratio("receiving_40_plus", "receptions"),
+        td_share_of_40plus=total_tds / total_explosive,
         basis=f"fitted_from_{game_count}_historical_game_lines",
+        passing_td_share_of_40plus=passing_share,
+        rushing_td_share_of_40plus=rushing_share,
+        receiving_td_share_of_40plus=receiving_share,
     )
 
 
@@ -105,26 +133,28 @@ class ExplosivePlayModel:
     def __init__(self, rates: ExplosivePlayRates = DEFAULT_RATES) -> None:
         self.rates = rates
 
+    def _estimate(self, volume: float, rate: float, td_share: float | None) -> ExplosivePlayEstimate:
+        expected = volume * rate
+        share = self.rates.td_share_of_40plus if td_share is None else td_share
+        return ExplosivePlayEstimate(round(expected, 3), round(expected * share, 3), self.rates.basis)
+
     def estimate_passing(self, pass_completions: float) -> ExplosivePlayEstimate:
-        expected = pass_completions * self.rates.completion_40plus_rate
-        return ExplosivePlayEstimate(
-            expected_40_plus=round(expected, 3),
-            expected_40_plus_tds=round(expected * self.rates.td_share_of_40plus, 3),
-            basis=self.rates.basis,
+        return self._estimate(
+            pass_completions,
+            self.rates.completion_40plus_rate,
+            self.rates.passing_td_share_of_40plus,
         )
 
     def estimate_rushing(self, rush_attempts: float) -> ExplosivePlayEstimate:
-        expected = rush_attempts * self.rates.rush_40plus_rate
-        return ExplosivePlayEstimate(
-            expected_40_plus=round(expected, 3),
-            expected_40_plus_tds=round(expected * self.rates.td_share_of_40plus, 3),
-            basis=self.rates.basis,
+        return self._estimate(
+            rush_attempts,
+            self.rates.rush_40plus_rate,
+            self.rates.rushing_td_share_of_40plus,
         )
 
     def estimate_receiving(self, receptions: float) -> ExplosivePlayEstimate:
-        expected = receptions * self.rates.reception_40plus_rate
-        return ExplosivePlayEstimate(
-            expected_40_plus=round(expected, 3),
-            expected_40_plus_tds=round(expected * self.rates.td_share_of_40plus, 3),
-            basis=self.rates.basis,
+        return self._estimate(
+            receptions,
+            self.rates.reception_40plus_rate,
+            self.rates.receiving_td_share_of_40plus,
         )

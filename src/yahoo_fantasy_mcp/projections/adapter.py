@@ -68,9 +68,8 @@ class NormalizedStatLine:
     unavailable_fields: tuple[str, ...]
     assumption: str
     #: Provenance of any estimated value: the explosive-play model's `basis`
-    #: ("unfitted_default_placeholder", or "fitted_from_N_historical_game_lines"
-    #: when a fitted model was used). None when nothing was estimated, so a
-    #: caller can distinguish "no estimate happened" from "estimated, unfitted".
+    #: (the packaged PBP calibration label, or a `fitted_from_N_...` label for
+    #: caller-supplied rates). None when nothing was estimated.
     estimation_basis: str | None = None
 
     def as_dict(self) -> dict[str, Any]:

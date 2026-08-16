@@ -1,0 +1,27 @@
+{
+  "fantasy_content": {
+    "league": [
+      {"league_key": "999.l.100000", "name": "Synthetic Example League"},
+      {"standings": [{"teams": {
+        "0": {"team": [
+          [{"team_key": "999.l.100000.t.1"}, {"team_id": "1"}, {"name": "Desert Owls"}],
+          {"team_points": {"total": "987.50"}},
+          {"team_standings": {
+            "rank": "1", "playoff_seed": "1", "outcome_totals": {"wins": "7", "losses": "2", "ties": "0", "percentage": ".778"},
+            "points_against": "901.25", "games_back": "-", "clinched_playoffs": "1",
+            "streak": {"type": "win", "value": "3"}
+          }}
+        ]},
+        "1": {"team": [
+          [{"team_key": "999.l.100000.t.2"}, {"team_id": "2"}, {"name": "Cactus Cats"}],
+          {"team_standings": {
+            "rank": "2", "points_for": "955.75", "points_against": "940.00", "games_back": "1.0",
+            "division_rank": "1", "outcome_totals": {"wins": "6", "losses": "3", "ties": "0", "percentage": ".667"},
+            "streak": {"type": "loss", "value": "1"}
+          }}
+        ]},
+        "count": 2
+      }}]}
+    ]
+  }
+}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yahoo-fantasy-mcp-v2"
-version = "0.1.0"
+version = "0.2.0"
 description = "Self-hosted, read-only Yahoo Fantasy Sports MCP: OAuth token vault, typed parsers, exact-slot optimizer, and an explosive-play projection layer."
 requires-python = ">=3.11"
 dependencies = [
@@ -22,6 +22,9 @@ yahoo-fantasy-mcp = "yahoo_fantasy_mcp.server:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["yahoo_fantasy_mcp*"]
+
+[tool.setuptools.package-data]
+yahoo_fantasy_mcp = ["projections/*.json"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
