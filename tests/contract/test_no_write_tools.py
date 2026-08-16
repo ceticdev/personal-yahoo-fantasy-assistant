@@ -49,6 +49,8 @@ def test_expected_read_only_tools_are_present():
         "get_team_roster",
         "get_free_agents",
         "get_transactions",
+        "get_league_standings",
+        "get_weekly_matchups",
         "normalize_projection",
         "optimize_lineup",
         "token_vault_status",

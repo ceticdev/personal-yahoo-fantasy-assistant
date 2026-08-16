@@ -6,8 +6,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from conftest import load_fixture  # noqa: E402
 
 from yahoo_fantasy_mcp.yahoo.parsers.league_settings import parse_league_settings
+from yahoo_fantasy_mcp.yahoo.parsers.matchups import parse_weekly_matchups
 from yahoo_fantasy_mcp.yahoo.parsers.players import parse_free_agents
 from yahoo_fantasy_mcp.yahoo.parsers.roster import parse_team_roster
+from yahoo_fantasy_mcp.yahoo.parsers.standings import parse_league_standings
 from yahoo_fantasy_mcp.yahoo.parsers.transactions import parse_transactions
 
 
@@ -69,3 +71,31 @@ def test_parse_transactions():
     add_move = next(m for m in tx.players if m.name == "Sample Addedplayer")
     assert add_move.source_type == "freeagents"
     assert add_move.destination_team_key == "999.l.100000.t.1"
+
+
+def test_parse_league_standings():
+    standings = parse_league_standings(load_fixture("standings_sample.json"))
+    assert [team.rank for team in standings] == [1, 2]
+    assert standings[0].name == "Desert Owls"
+    assert standings[0].points_for == 987.5
+    assert standings[0].games_back is None
+    assert standings[0].clinched_playoffs is True
+    assert standings[1].division_rank == 1
+    assert standings[1].streak_type == "loss"
+
+
+def test_parse_explicitly_empty_standings():
+    payload = {"fantasy_content": {"league": [{}, {"standings": {"teams": {"count": 0}}}]}}
+    assert parse_league_standings(payload) == []
+
+
+def test_parse_weekly_matchups():
+    scoreboard = parse_weekly_matchups(load_fixture("matchups_sample.json"))
+    assert scoreboard.week == 9
+    assert len(scoreboard.matchups) == 1
+    matchup = scoreboard.matchups[0]
+    assert matchup.winner_team_key == "999.l.100000.t.1"
+    assert matchup.is_playoffs is False
+    assert [team.name for team in matchup.teams] == ["Desert Owls", "Cactus Cats"]
+    assert matchup.teams[0].points == 121.45
+    assert matchup.teams[0].stats == {"4": "312"}

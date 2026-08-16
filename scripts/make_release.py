@@ -38,6 +38,7 @@ FORBIDDEN_PATTERNS: dict[str, str] = {
     "bytecode cache": r"(^|/)__pycache__(/|$)",
     "compiled bytecode": r"\.py[co]$",
     "egg-info": r"\.egg-info(/|$)",
+    "build directory": r"(^|/)build(/|$)",
     "dotenv secrets": r"(^|/)\.env$|(^|/)\.env\.(?!example$)",
     "token file": r"token[^/]*\.json$|\.yahoo_token\.json$",
     "credential file": r"credential[^/]*\.json$|client_secret[^/]*\.json$",
@@ -48,7 +49,12 @@ FORBIDDEN_PATTERNS: dict[str, str] = {
     "nested archive": r"\.zip$",
 }
 
-REQUIRED_ENTRIES = (".env.example", "README.md", "pyproject.toml")
+REQUIRED_ENTRIES = (
+    ".env.example",
+    "README.md",
+    "pyproject.toml",
+    "src/yahoo_fantasy_mcp/projections/explosive_play_calibration.json",
+)
 
 
 def build(ref: str, output: Path) -> Path:

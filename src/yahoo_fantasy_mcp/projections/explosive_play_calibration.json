@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "basis": "provided_slim_pbp_2020_2025_regular_seasons_v1",
+  "description": "Offline calibration from six supplied slim play-by-play files; regular-season weeks only, excluding two-point plays, kneels, and spikes.",
+  "totals": {
+    "pass_completions": 70136,
+    "passing_40_plus": 1547,
+    "passing_40_plus_tds": 567,
+    "rush_attempts": 84447,
+    "rushing_40_plus": 395,
+    "rushing_40_plus_tds": 182,
+    "receptions": 70136,
+    "receiving_40_plus": 1543,
+    "receiving_40_plus_tds": 566
+  },
+  "rates": {
+    "completion_40plus_rate": 0.022057146116117258,
+    "rush_40plus_rate": 0.0046774900233282415,
+    "reception_40plus_rate": 0.022000114064104025,
+    "td_share_of_40plus": 0.37733142037302725,
+    "passing_td_share_of_40plus": 0.3665158371040724,
+    "rushing_td_share_of_40plus": 0.4607594936708861,
+    "receiving_td_share_of_40plus": 0.3668178872326636
+  },
+  "files": [
+    {"season": 2020, "rows": 42071, "regular_rows": 40029, "games": 256, "max_week": 17, "sha256": "068fee5f34b1205df496f5d2ad165d50\u006396f4681ef9ac4eebb0171b249918e4f"},
+    {"season": 2021, "rows": 43744, "regular_rows": 41741, "games": 272, "max_week": 18, "sha256": "346a80e6b25198e5e9054ade4da062d1\u0039134753d4325c6537118f7efe01aa6bc"},
+    {"season": 2022, "rows": 43422, "regular_rows": 41401, "games": 271, "max_week": 18, "sha256": "b9ebeb8a0c31f4620a42887fd9c1ffe1\u0031bf5c41f635415173822cdde98298284"},
+    {"season": 2023, "rows": 43658, "regular_rows": 41642, "games": 272, "max_week": 18, "sha256": "b32cdf884fabed80da0a04ac72055ac8\u0035f6e2f299e213e9f0d22ad5df97894b1"},
+    {"season": 2024, "rows": 43098, "regular_rows": 41152, "games": 272, "max_week": 18, "sha256": "4fa5275e1553234e3ed5930cae4c266a\u00353ccc6ae310873cb2aab78ee2de35c0a"},
+    {"season": 2025, "rows": 42584, "regular_rows": 40517, "games": 272, "max_week": 18, "sha256": "4c0b0d08139c19e1b1cc5831dd74df9e\u003016689eb67e472034182b1a6bbadd5ff"}
+  ]
+}

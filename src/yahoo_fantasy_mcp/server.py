@@ -24,7 +24,7 @@ from .auth.oauth_client import YahooOAuthClient
 from .auth.token_vault import TokenVault
 from .cache import TTLCache
 from .config import load_config
-from .errors import CredentialsMissingError, YahooMcpError, error_envelope
+from .errors import CredentialsMissingError, InputValidationError, YahooMcpError, error_envelope
 from .logging_utils import configure_logging, log_context
 from .optimizer.exact_slot import optimize_lineup as _optimize_lineup
 from .projections.adapter import normalize_stat_line
@@ -41,8 +41,8 @@ mcp = FastMCP(
     name="yahoo-fantasy-mcp-v2",
     instructions=(
         "Self-hosted, READ-ONLY Yahoo Fantasy Sports connector. Provides Yahoo "
-        "league settings (full stat-modifier and roster-position tables), rosters, "
-        "free agents, and transactions, plus a projection normalizer, an "
+        "league settings (full stat-modifier and roster-position tables), standings, "
+        "weekly matchups, rosters, free agents, and transactions, plus a projection normalizer, an "
         "explosive-play estimator, and an exact-slot lineup optimizer. "
         "There are no write tools in this server -- it cannot add, drop, trade, "
         "change lineups, or change league settings, even if asked. Every read is "
@@ -73,6 +73,24 @@ def _client() -> YahooFantasyClient:
     return YahooFantasyClient(oauth_client=oauth_client, cache=_cache, logger=_logger)
 
 
+def _league_key(explicit: str | None) -> str:
+    value = explicit or _config.default_league_key
+    if not value:
+        raise InputValidationError(
+            "league_key is required unless YAHOO_FANTASY_DEFAULT_LEAGUE_KEY is configured"
+        )
+    return value
+
+
+def _team_key(explicit: str | None) -> str:
+    value = explicit or _config.default_team_key
+    if not value:
+        raise InputValidationError(
+            "team_key is required unless YAHOO_FANTASY_DEFAULT_TEAM_KEY is configured"
+        )
+    return value
+
+
 def _safe_read(tool: str, call: Callable[[YahooFantasyClient], dict[str, Any]]) -> dict[str, Any]:
     """Run a Yahoo-backed read and normalize every failure into an envelope."""
 
@@ -90,7 +108,7 @@ def _safe_read(tool: str, call: Callable[[YahooFantasyClient], dict[str, Any]]) 
 
 
 @mcp.tool
-def get_league_settings(league_key: str, force_refresh: bool = False) -> dict[str, Any]:
+def get_league_settings(league_key: str | None = None, force_refresh: bool = False) -> dict[str, Any]:
     """Full Yahoo league settings: stat modifiers, roster position counts, playoff/waiver rules.
 
     Returns the complete stat-modifier and roster-position tables, so a custom
@@ -100,41 +118,78 @@ def get_league_settings(league_key: str, force_refresh: bool = False) -> dict[st
 
     return _safe_read(
         "get_league_settings",
-        lambda client: client.get_league_settings(league_key, force_refresh=force_refresh),
+        lambda client: client.get_league_settings(_league_key(league_key), force_refresh=force_refresh),
     )
 
 
 @mcp.tool
-def get_team_roster(team_key: str, force_refresh: bool = False) -> dict[str, Any]:
+def get_team_roster(team_key: str | None = None, force_refresh: bool = False) -> dict[str, Any]:
     """Current roster for a Yahoo team key, with status/status_full and selected_position."""
 
     return _safe_read(
         "get_team_roster",
-        lambda client: client.get_team_roster(team_key, force_refresh=force_refresh),
+        lambda client: client.get_team_roster(_team_key(team_key), force_refresh=force_refresh),
     )
 
 
 @mcp.tool
 def get_free_agents(
-    league_key: str, position: str | None = None, count: int = 25, force_refresh: bool = False
+    league_key: str | None = None,
+    position: str | None = None,
+    count: int = 25,
+    force_refresh: bool = False,
 ) -> dict[str, Any]:
     """Available free agents in the league, optionally filtered by position."""
 
     return _safe_read(
         "get_free_agents",
         lambda client: client.get_free_agents(
-            league_key, position=position, count=count, force_refresh=force_refresh
+            _league_key(league_key), position=position, count=count, force_refresh=force_refresh
         ),
     )
 
 
 @mcp.tool
-def get_transactions(league_key: str, count: int = 25, force_refresh: bool = False) -> dict[str, Any]:
+def get_transactions(
+    league_key: str | None = None, count: int = 25, force_refresh: bool = False
+) -> dict[str, Any]:
     """Recent league transactions (adds/drops/trades). Read-only: this reports, it cannot transact."""
 
     return _safe_read(
         "get_transactions",
-        lambda client: client.get_transactions(league_key, count=count, force_refresh=force_refresh),
+        lambda client: client.get_transactions(
+            _league_key(league_key), count=count, force_refresh=force_refresh
+        ),
+    )
+
+
+@mcp.tool
+def get_league_standings(
+    league_key: str | None = None, force_refresh: bool = False
+) -> dict[str, Any]:
+    """Current league ranks, records, points, games back, seeds, and streaks."""
+
+    return _safe_read(
+        "get_league_standings",
+        lambda client: client.get_league_standings(
+            _league_key(league_key), force_refresh=force_refresh
+        ),
+    )
+
+
+@mcp.tool
+def get_weekly_matchups(
+    league_key: str | None = None,
+    week: int | None = None,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
+    """League scoreboard for the current week or an explicit positive week number."""
+
+    return _safe_read(
+        "get_weekly_matchups",
+        lambda client: client.get_weekly_matchups(
+            _league_key(league_key), week=week, force_refresh=force_refresh
+        ),
     )
 
 
@@ -155,10 +210,9 @@ def normalize_projection(
     estimate instead.
 
     The returned `estimation_basis` states where any estimate came from:
-    null when nothing was estimated, `unfitted_default_placeholder` when the
-    default (unfitted) model supplied it, or a `fitted_from_...` label when a
-    model fitted from real history was used. Treat
-    `unfitted_default_placeholder` as "this number is a guess."
+    null when nothing was estimated or a named calibrated/fitted basis when a
+    model supplied it. The packaged default was derived offline from the supplied
+    2020-2025 slim regular-season play-by-play files; it is not live Yahoo data.
     """
 
     try:
@@ -213,16 +267,17 @@ def weekly_workflow_resource() -> str:
     return (
         "1. get_league_settings for the stat-modifier and roster-slot tables; "
         "do not assume last week's settings still hold.\n"
-        "2. get_team_roster, get_free_agents, and get_transactions for current state.\n"
-        "3. For every player, normalize_projection the raw stat line from your "
+        "2. get_league_standings and get_weekly_matchups for opponent/season context.\n"
+        "3. get_team_roster, get_free_agents, and get_transactions for current state.\n"
+        "4. For every player, normalize_projection the raw stat line from your "
         "projection source. Leave estimate_explosive_plays off unless you can supply "
         "real volume stats and accept a labeled model estimate; check "
         "`estimation_basis` before trusting one.\n"
-        "4. Pass normalized stat lines to a scoring MCP for points, then "
+        "5. Pass normalized stat lines to a scoring MCP for points, then "
         "optimize_lineup with slots from step 1.\n"
-        "5. Report any `stale: true`, `refresh_failed: true`, or `not_provisioned` "
+        "6. Report any `stale: true`, `refresh_failed: true`, or `not_provisioned` "
         "result explicitly -- never present cached or blocked data as fresh.\n"
-        "6. This server has no write tools. It cannot add/drop/trade/submit a lineup, "
+        "7. This server has no write tools. It cannot add/drop/trade/submit a lineup, "
         "and never will without a separate, explicitly approved change."
     )
 

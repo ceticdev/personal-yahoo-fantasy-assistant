@@ -12,11 +12,11 @@ from yahoo_fantasy_mcp.projections.explosive_play_model import (
 )
 
 
-def test_default_model_is_labeled_unfitted():
+def test_default_model_is_labeled_with_packaged_calibration():
     model = ExplosivePlayModel()
     estimate = model.estimate_receiving(receptions=100)
-    assert estimate.basis == "unfitted_default_placeholder"
-    assert estimate.expected_40_plus == pytest.approx(100 * DEFAULT_RATES.reception_40plus_rate)
+    assert estimate.basis == "provided_slim_pbp_2020_2025_regular_seasons_v1"
+    assert estimate.expected_40_plus == round(100 * DEFAULT_RATES.reception_40plus_rate, 3)
 
 
 def test_fit_from_history_computes_rates():

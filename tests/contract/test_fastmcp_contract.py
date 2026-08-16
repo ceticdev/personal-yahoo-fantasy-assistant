@@ -1,6 +1,6 @@
 """Real FastMCP contract coverage using the in-memory `Client` transport.
 
-Every one of the seven registered tools is called through an actual MCP
+Every registered tool is called through an actual MCP
 client/server round trip -- not by calling the Python function directly -- so
 schema generation, argument coercion, and result serialization are all
 exercised.
@@ -42,6 +42,8 @@ TOOL_NAMES = {
     "get_team_roster",
     "get_free_agents",
     "get_transactions",
+    "get_league_standings",
+    "get_weekly_matchups",
     "normalize_projection",
     "optimize_lineup",
     "token_vault_status",
@@ -150,7 +152,7 @@ def assert_error_envelope(result: dict, *, error_type: str, auth_required=None, 
 # --- registration ---------------------------------------------------------
 
 
-def test_all_seven_tools_are_registered_and_discoverable():
+def test_all_nine_tools_are_registered_and_discoverable():
     async def _run():
         async with Client(server_module.mcp) as client:
             return {tool.name for tool in await client.list_tools()}
@@ -265,6 +267,60 @@ def test_get_transactions_with_a_mocked_successful_yahoo_response(env, monkeypat
     assert result["data"][0]["transaction_type"] == "add/drop"
 
 
+def test_get_league_standings_with_a_mocked_successful_yahoo_response(env, monkeypatch):
+    _vault_a_token(env)
+    _mock_yahoo(monkeypatch, _Response(200, load_fixture("standings_sample.json")))
+
+    result = call_tool("get_league_standings", {"league_key": LEAGUE_KEY})
+
+    assert result["stale"] is False
+    assert [team["rank"] for team in result["data"]] == [1, 2]
+
+
+def test_get_weekly_matchups_with_a_mocked_successful_yahoo_response(env, monkeypatch):
+    _vault_a_token(env)
+    _mock_yahoo(monkeypatch, _Response(200, load_fixture("matchups_sample.json")))
+
+    result = call_tool("get_weekly_matchups", {"league_key": LEAGUE_KEY, "week": 9})
+
+    assert result["stale"] is False
+    assert result["data"]["week"] == 9
+    assert result["data"]["matchups"][0]["teams"][0]["name"] == "Desert Owls"
+
+
+def test_configured_default_keys_make_yahoo_key_arguments_optional(env, monkeypatch):
+    _vault_a_token(env)
+    base = _config(env)
+    monkeypatch.setattr(
+        server_module,
+        "_config",
+        Config(
+            client_id=base.client_id,
+            client_secret=base.client_secret,
+            redirect_uri=base.redirect_uri,
+            token_path=base.token_path,
+            default_league_key=LEAGUE_KEY,
+            default_team_key=TEAM_KEY,
+            cache_ttl_seconds=base.cache_ttl_seconds,
+            log_level=base.log_level,
+            env_file=None,
+        ),
+    )
+    payloads = iter(
+        [load_fixture("league_settings_sample.json"), load_fixture("roster_sample.json")]
+    )
+    monkeypatch.setattr(httpx, "get", lambda *args, **kwargs: _Response(200, next(payloads)))
+
+    assert call_tool("get_league_settings")["data"]["league_id"] == "100000"
+    assert len(call_tool("get_team_roster")["data"]) == 4
+
+
+def test_missing_default_key_is_a_structured_invalid_input(env):
+    _vault_a_token(env)
+    result = call_tool("get_league_settings")
+    assert_error_envelope(result, error_type="invalid_input", auth_required=False)
+
+
 # --- failure scenarios, all as structured results -------------------------
 
 
@@ -275,6 +331,8 @@ def test_get_transactions_with_a_mocked_successful_yahoo_response(env, monkeypat
         ("get_team_roster", {"team_key": TEAM_KEY}),
         ("get_free_agents", {"league_key": LEAGUE_KEY}),
         ("get_transactions", {"league_key": LEAGUE_KEY}),
+        ("get_league_standings", {"league_key": LEAGUE_KEY}),
+        ("get_weekly_matchups", {"league_key": LEAGUE_KEY}),
     ],
 )
 def test_no_credentials_returns_structured_error_for_every_yahoo_tool(tmp_path, monkeypatch, tool, arguments):
@@ -293,6 +351,8 @@ def test_no_credentials_returns_structured_error_for_every_yahoo_tool(tmp_path, 
         ("get_team_roster", {"team_key": TEAM_KEY}),
         ("get_free_agents", {"league_key": LEAGUE_KEY}),
         ("get_transactions", {"league_key": LEAGUE_KEY}),
+        ("get_league_standings", {"league_key": LEAGUE_KEY}),
+        ("get_weekly_matchups", {"league_key": LEAGUE_KEY}),
     ],
 )
 def test_credentials_but_no_token_returns_structured_error(env, tool, arguments):

@@ -1,0 +1,28 @@
+{
+  "fantasy_content": {
+    "league": [
+      {"league_key": "999.l.100000"},
+      {"scoreboard": {"week": "9", "0": {"matchups": {
+        "0": {"matchup": {
+          "week": "9", "week_start": "2025-10-30", "week_end": "2025-11-03", "status": "postevent",
+          "is_playoffs": "0", "is_consolation": "false", "is_tied": "0", "winner_team_key": "999.l.100000.t.1",
+          "0": {"teams": {
+            "0": {"team": [
+              [{"team_key": "999.l.100000.t.1"}, {"team_id": "1"}, {"name": "Desert Owls"}],
+              {"team_points": {"total": "121.45"}},
+              {"team_projected_points": {"total": "118.20"}},
+              {"team_stats": {"stats": [{"stat": {"stat_id": "4", "value": "312"}}]}}
+            ]},
+            "1": {"team": [
+              [{"team_key": "999.l.100000.t.2"}, {"team_id": "2"}, {"name": "Cactus Cats"}],
+              {"team_points": {"total": "115.10"}},
+              {"team_projected_points": {"total": "119.75"}}
+            ]},
+            "count": 2
+          }}
+        }},
+        "count": 1
+      }}}}
+    ]
+  }
+}

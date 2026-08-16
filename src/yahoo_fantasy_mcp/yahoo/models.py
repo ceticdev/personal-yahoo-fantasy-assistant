@@ -108,3 +108,52 @@ class Transaction:
     status: str
     timestamp: int  # unix epoch seconds, as Yahoo returns it
     players: list[TransactionPlayerMove] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class TeamStanding:
+    team_key: str
+    team_id: str
+    name: str
+    rank: int
+    wins: int
+    losses: int
+    ties: int
+    percentage: float | None
+    points_for: float | None
+    points_against: float | None
+    games_back: float | None
+    playoff_seed: int | None
+    division_rank: int | None
+    clinched_playoffs: bool
+    streak_type: str | None
+    streak_length: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class MatchupTeam:
+    team_key: str
+    team_id: str
+    name: str
+    points: float | None
+    projected_points: float | None
+    stats: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class Matchup:
+    week: int
+    week_start: str | None
+    week_end: str | None
+    status: str
+    is_playoffs: bool
+    is_consolation: bool
+    is_tied: bool
+    winner_team_key: str | None
+    teams: list[MatchupTeam] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class LeagueScoreboard:
+    week: int
+    matchups: list[Matchup] = field(default_factory=list)

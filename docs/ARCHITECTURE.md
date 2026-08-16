@@ -70,10 +70,9 @@ Yahoo Fantasy Sports API   (GET only, fspt-r; access pending approval)
 ## Implemented vs. planned Yahoo resources
 
 Implemented today: league settings and stat modifiers, roster positions, team
-rosters, available players, and transactions (read only). **Standings and
-matchups are planned, not implemented** — they are named in the Yahoo access
-request and will follow the same read-only pattern, but no tool for them
-exists in this build.
+rosters, available players, transactions, standings, and weekly matchups (all
+read only). Every response parser is fixture-verified; the Yahoo-backed shapes
+remain subject to live schema acceptance after provisioning.
 
 ## Runtime contracts
 
@@ -120,10 +119,10 @@ fixtures themselves must be replaced or recalibrated from a sanitized real
 response once Yahoo access is granted. Until then, no `stat_value(...)` result
 derived from a fixture is authoritative for a real league's scoring rules.
 
-## Known open item: explosive-play rates are unfitted
+## Explosive-play calibration boundary
 
-`projections/explosive_play_model.py` ships with placeholder default rates,
-labeled `basis="unfitted_default_placeholder"` in every estimate it returns.
-Call `fit_from_history()` with real season data before trusting an *estimated*
-40+ play count in a real decision. Until then, prefer leaving 40+ fields
-unavailable (the default behavior) over a guessed estimate.
+`projections/explosive_play_model.py` loads a fail-closed, versioned calibration
+derived offline from the supplied 2020-2025 slim regular-season PBP files. Raw
+PBP is not runtime data and is not shipped. `estimation_basis` identifies the
+artifact on every estimate; opt-in estimation remains distinct from observed
+counts. See `EXPLOSIVE_PLAY_CALIBRATION.md` for filters and audit evidence.

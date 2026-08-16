@@ -38,13 +38,10 @@ today from what is planned, so nothing here overstates the current state:
 | Team rosters | **Implemented** (`get_team_roster`) | Know which players are on the user's own team |
 | Available players (free agents / waivers) | **Implemented** (`get_free_agents`) | Suggest pickups the user then makes by hand in Yahoo |
 | Transactions | **Implemented** (`get_transactions`) — read only | Recent league adds/drops/trades for context |
-| Standings | *Planned, not implemented* | Season context for start/sit decisions |
-| Matchups | *Planned, not implemented* | Weekly opponent context for start/sit decisions |
+| Standings | **Implemented** (`get_league_standings`) | Season context for start/sit decisions |
+| Matchups | **Implemented** (`get_weekly_matchups`) | Weekly opponent context for start/sit decisions |
 
-Standings and matchups are in scope for the access request and will use the
-same read-only pattern, but no tool for them exists in this build.
-
-The complete registered tool surface is seven tools: the four Yahoo reads
+The complete registered tool surface is nine tools: the six Yahoo reads
 above, plus `normalize_projection`, `optimize_lineup`, and
 `token_vault_status`. The latter three touch no Yahoo endpoint at all.
 
@@ -122,14 +119,19 @@ off. It also does not source news or injury reports.
   particular stat ID being correct — they read whatever the response contains —
   but no specific `stat_value("78")` result from a fixture should be treated as
   authoritative for a real league.
-- **The explosive-play rates are unfitted placeholders**, labeled
-  `estimation_basis="unfitted_default_placeholder"` on every estimate
-  `normalize_projection` returns. Treat that label as "this number is a guess."
-- **Standings and matchups are not implemented**, only planned.
+- **Explosive-play rates have an offline historical calibration**, labeled
+  `estimation_basis="provided_slim_pbp_2020_2025_regular_seasons_v1"` on every
+  estimate. The six raw slim files are intentionally not shipped, but their
+  hashes, row counts, filters, aggregate counts, and derived rates are recorded
+  in the package artifact and documented in
+  [`docs/EXPLOSIVE_PLAY_CALIBRATION.md`](docs/EXPLOSIVE_PLAY_CALIBRATION.md).
+- **Standings and matchup parsing is synthetic-fixture verified, not live
+  Yahoo verified.** Those tools remain subject to the same post-approval schema
+  acceptance gate as the other Yahoo reads.
 
 What *is* verified, on both Windows and Linux across Python 3.11 and 3.12 in
 CI: the full test suite including real FastMCP client/server contract tests
-for all seven tools, the read-only transport guarantees, the token protection
+for all nine tools, the read-only transport guarantees, the token protection
 and its fail-closed behavior, the stale-fallback policy, log redaction, a
 secret scan, and a clean-release archive check.
 
@@ -144,20 +146,22 @@ src/yahoo_fantasy_mcp/
   auth/token_vault.py        single-file OAuth token store, atomic writes
   auth/protection.py         Windows DPAPI / POSIX 0600 token protection at rest
   auth/oauth_client.py       authorization-code + refresh flow, fspt-r scope only
-  yahoo/models.py            typed dataclasses: LeagueSettings, StatModifier, RosterPlayer, Transaction
+  yahoo/models.py            typed settings, roster, standings, matchup, and transaction records
   yahoo/client.py            GET-only HTTP wrapper: cache-aware, typed errors
-  yahoo/parsers/             league_settings.py, roster.py, players.py, transactions.py
+  yahoo/parsers/             settings, roster, player, transaction, standings, and matchup parsers
   cache.py                   TTL cache with age/stale labeling and stale fallback
   projections/adapter.py     normalizes raw stat lines from any source into one shape
-  projections/explosive_play_model.py   rate model for 40+ plays / long TDs (unfitted)
+  projections/explosive_play_model.py   calibrated rate model for 40+ plays / long TDs
+  projections/explosive_play_calibration.json   versioned offline calibration artifact
   optimizer/exact_slot.py    dynamic-program lineup optimizer over the league's real slots
   server.py                  FastMCP stdio entrypoint, read-only tools only
 scripts/
   obtain_yahoo_token.py      one-time interactive OAuth helper
   secret_scan.py             tracked-file secret scan (filenames + categories only)
   make_release.py            git-archive release build + clean-archive verification
+  fit_explosive_play_rates.py  reproducible offline fitter/checker (raw inputs not shipped)
 tests/
-  fixtures/    synthetic Yahoo-shaped JSON (league settings, roster, free agents, transactions)
+  fixtures/    synthetic Yahoo-shaped JSON (including standings and matchups)
   unit/        env, cache, vault, token protection, redaction, parser, optimizer, model tests
   contract/    FastMCP in-memory client tests, read-only transport, packaging, no-write-tools
 docs/

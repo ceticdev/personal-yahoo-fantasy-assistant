@@ -1,7 +1,9 @@
 # Verification notes
 
-Everything reported here is reproducible from this repository alone. No claim
-below depends on a file, dataset, or environment that is not in this repo.
+The code/test/package claims below are reproducible from this repository alone.
+The tracked explosive-play artifact also records the hashes, row counts,
+filters, totals, and rates produced from the supplied slim PBP inputs; those
+raw inputs are deliberately excluded from the repository and release.
 
 ## How to reproduce
 
@@ -17,17 +19,13 @@ python scripts/make_release.py
 ## Last recorded run
 
 - **Date:** August 15, 2026
-- **Environment:** Windows 11, CPython 3.11.9, fresh venv, `pip install -e ".[dev]"`
-- **Result:** `163 passed, 2 skipped`
+- **Environment:** Linux, CPython 3.12, fresh venv, `pip install -e ".[dev]"`
+- **Result:** `217 passed, 1 skipped` in the clean handoff build
 
-The 2 skips are the two POSIX file-mode assertions in
-`tests/unit/test_token_vault.py`, skipped on Windows because Windows does not
-enforce POSIX permission bits. That is not an untested gap: on Windows the
-token is DPAPI-encrypted instead, and the real DPAPI round trip is exercised
-by `test_real_dpapi_round_trip_on_windows`, which runs on Windows and is
-skipped on POSIX. On Linux the mode assertions run and the DPAPI path is
-covered by mocks. Every platform-specific guarantee is asserted somewhere on
-every platform.
+The one skip is the real Windows DPAPI round trip, which is Windows-only. On
+Linux, POSIX mode assertions run and the DPAPI path is covered by mocks. In
+the Windows matrix job, the real DPAPI round trip runs while POSIX-only mode
+assertions skip. Every platform-specific guarantee is asserted in CI.
 
 CI runs the same suite on **Ubuntu and Windows** across **Python 3.11 and
 3.12** (`.github/workflows/ci.yml`), with no Yahoo credentials and no
@@ -38,7 +36,7 @@ repository secrets.
 | Area | Item | Where |
 |---|---|---|
 | Config | Repository `.env` is loaded; real environment variables override it; lookup works from an unrelated working directory; a missing `.env` is a silent no-op; `.env.example` is never loaded | `tests/unit/test_env_loading.py` |
-| Parsing | Parsers round-trip Yahoo-shaped fixtures (settings, roster, free agents, transactions) | `tests/unit/test_parsers.py` |
+| Parsing | Parsers round-trip Yahoo-shaped fixtures (settings, roster, free agents, transactions, standings, weekly matchups) | `tests/unit/test_parsers.py` |
 | Parsing | `get_league_settings` surfaces the full stat-modifier table, not just `scoring_type` | `tests/unit/test_parsers.py` |
 | Parsing | Malformed/missing Yahoo sections raise a typed error instead of silently returning empty | `tests/contract/` |
 | Optimizer | Starter slots come from `LeagueSettings.starter_slots()`, not a hardcoded list | `tests/unit/test_optimizer.py` |
@@ -54,13 +52,13 @@ repository secrets.
 | Redaction | A sentinel secret never appears in captured output via message, interpolated args, structured context, exception text, or a chained exception | `tests/unit/test_logging_redaction.py` |
 | Redaction | Repeated `configure_logging()` does not stack handlers; records do not propagate to non-redacting root handlers | `tests/unit/test_logging_redaction.py` |
 | Caching | Fresh hit → `stale=false`; expired + success → new data, `stale=false`; expired + transport/service failure → previous data with `stale=true`, real `age_seconds`, `refresh_failed=true`, structured `refresh_error`; no cache + failure → error; `force_refresh` + failure → error, never a silent fallback; parser/validation/programming errors never disguised as stale data | `tests/unit/test_cache.py` (injected clock, no sleeping) |
-| MCP contract | All seven tools called through a real in-memory FastMCP `Client`: successful pure-tool calls, mocked successful Yahoo responses, no credentials, credentials without a token, malformed token, unreadable token, refresh failure, OAuth transport failure, Yahoo 401, provisioning 403, transport failure, stale fallback, forced-refresh failure, invalid optimizer/projection input | `tests/contract/test_fastmcp_contract.py` |
+| MCP contract | All nine tools discoverable through a real in-memory FastMCP `Client`, with successful pure-tool calls and mocked Yahoo reads plus the full structured-failure matrix | `tests/contract/test_fastmcp_contract.py` |
 | MCP contract | No expected operational failure surfaces as an uncaught FastMCP `ToolError` | `tests/contract/test_fastmcp_contract.py` |
 | Read-only | Every Yahoo Fantasy data request uses GET, with `httpx.put/post/patch/delete` sabotaged during the test | `tests/contract/test_read_only_transport.py` |
 | Read-only | The only POST in the package targets Yahoo's exact token endpoint; no write-verb call exists elsewhere in `src/` | `tests/contract/test_read_only_transport.py` |
 | Read-only | The requested OAuth scope is exactly `fspt-r`; no `fspt-w` code literal exists | `tests/contract/test_read_only_transport.py` |
 | Read-only | No registered MCP tool name contains a write verb | `tests/contract/test_no_write_tools.py` |
-| Projections | `estimation_basis` is null when nothing was estimated, `unfitted_default_placeholder` for the default model, and the fitted label for a fitted model; provided / estimated / unavailable / zero-valued fields stay distinguishable | `tests/unit/test_projection_adapter.py` |
+| Projections | `estimation_basis` is null when nothing was estimated, names the packaged 2020-2025 PBP calibration for the default model, and names caller-fitted models; provided / estimated / unavailable / zero-valued fields stay distinguishable | `tests/unit/test_projection_adapter.py`, `tests/unit/test_pbp_calibration.py` |
 | Packaging | The release checker rejects each forbidden category (`.git`, `.venv`, `.pytest_cache`, `__pycache__`, `.pyc`, egg-info, `.env`, token/credential files, key material, local reports, parent-folder documents), requires one top-level directory, and requires `.env.example` | `tests/contract/test_release_packaging.py` |
 | Packaging | The secret scanner finds a planted secret and reports categories without values | `tests/contract/test_release_packaging.py` |
 
@@ -79,11 +77,11 @@ repository secrets.
 - **Stat IDs and stat modifier values in the fixtures are illustrative and
   uncalibrated.** They must be replaced or recalibrated from a sanitized real
   response after Yahoo approval before any specific stat value is trusted.
-- **Standings and matchups are not implemented.** They are named in the access
-  request as planned resources; no tool for them exists in this build.
-- **Explosive-play rates are unfitted.** No historical play-by-play dataset was
-  available to fit against, so the defaults are placeholders, reported as
-  `estimation_basis="unfitted_default_placeholder"` on every estimate.
+- **Standings and matchups are not live-verified.** The tools and parsers exist,
+  but their fixtures are synthetic and need post-approval schema acceptance.
+- **Explosive-play calibration is offline.** It was fitted from the supplied
+  2020-2025 slim regular-season PBP files, not Yahoo data. Raw inputs are not
+  shipped; the artifact records their hashes and derived audit evidence.
 - **The mocked Yahoo responses are shaped by us, not by Yahoo.** The contract
   tests prove this server behaves correctly *given* Yahoo's documented shape.
   They cannot prove the documented shape matches production. Re-run

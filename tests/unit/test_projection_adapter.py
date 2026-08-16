@@ -63,8 +63,8 @@ def test_estimation_basis_is_null_when_nothing_was_estimated():
     assert result.as_dict()["estimation_basis"] is None
 
 
-def test_estimation_basis_reports_the_unfitted_default_model():
-    """The default model is a placeholder, and the caller is told so by name."""
+def test_estimation_basis_reports_the_packaged_calibration():
+    """The caller is told exactly which offline calibration supplied the estimate."""
 
     result = normalize_stat_line(
         {"receiving_yards": 120, "receptions": 10},
@@ -74,9 +74,10 @@ def test_estimation_basis_reports_the_unfitted_default_model():
         model=ExplosivePlayModel(),
     )
 
-    assert result.estimation_basis == "unfitted_default_placeholder"
-    assert result.as_dict()["estimation_basis"] == "unfitted_default_placeholder"
-    assert "unfitted_default_placeholder" in result.assumption
+    expected = "provided_slim_pbp_2020_2025_regular_seasons_v1"
+    assert result.estimation_basis == expected
+    assert result.as_dict()["estimation_basis"] == expected
+    assert expected in result.assumption
 
 
 def test_estimation_basis_reports_a_fitted_model():

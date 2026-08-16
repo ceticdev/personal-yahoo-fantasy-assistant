@@ -11,9 +11,9 @@ typed exception carrying the four flags a caller needs to decide what to do:
     error_type        a stable machine-readable discriminator
 
 MCP tools convert these into `error_envelope()` results rather than letting
-them escape as uncaught FastMCP ToolErrors. Programming errors (a parser bug,
-a bad argument) deliberately do NOT live here -- they are not expected
-operational states and must not be laundered into a friendly envelope.
+them escape as uncaught FastMCP ToolErrors. Invalid caller input has its own
+typed envelope; programming errors (such as a parser bug) still do not live
+here and must not be laundered into a friendly operational response.
 """
 
 from __future__ import annotations
@@ -74,6 +74,12 @@ class TokenProtectionError(YahooMcpError):
 
     error_type = "token_protection_unavailable"
     auth_required = True
+
+
+class InputValidationError(YahooMcpError):
+    """A tool argument is malformed or outside its documented bounds."""
+
+    error_type = "invalid_input"
 
 
 # -- OAuth failures --------------------------------------------------------
